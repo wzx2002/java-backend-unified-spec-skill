@@ -2,9 +2,7 @@
 
 ## 1. 目标
 
-本文档用于作为后续所有 Java 后端项目的统一规范基线。
-
-适用场景：
+本文档作为后续所有 Java 后端项目的统一规范基线，适用于以下场景：
 
 - 新建 Java 后端项目
 - 老项目重构
@@ -12,9 +10,13 @@
 - AI 协作开发
 - 代码评审、提测、交付验收
 
-本文档是独立规范，不依赖当前仓库其他文档。
+统一目标：
 
----
+- 统一工程结构与顶层模块命名
+- 统一分层边界与职责
+- 统一命名规范与常量体系
+- 统一默认中文注释标准
+- 统一代码质量、自检与回归口径
 
 ## 2. 建议技术基线
 
@@ -29,8 +31,6 @@
 - `JWT access token + refresh token`
 - `Lombok`
 - `jakarta validation`
-- 全项目统一 `UTF-8`
-- 数据库统一 `utf8mb4`
 
 统一要求：
 
@@ -38,8 +38,6 @@
 - 禁止提交 `GBK`、`ANSI`、`BOM` 文件
 - 单表简单查询与状态更新优先使用 `MyBatis-Plus Wrapper`
 - 多表联查、统计、导出、对账统一使用 `Mapper XML`
-
----
 
 ## 3. 建议安装的 Skills
 
@@ -61,8 +59,6 @@
 - 带权限与数据隔离：再加 `bangyi-permission-datascope`
 - 带资金链路：再加 `bangyi-finance-audit`
 - 进入提测与上线阶段：再加 `bangyi-test-delivery`
-
----
 
 ## 4. 顶层模块命名与工程结构
 
@@ -111,8 +107,6 @@ project-parent
 - `service` -> `business`
 - `application` -> `web`
 
----
-
 ## 5. 模块拆分规则
 
 模块默认按“项目目标”或“业务需求”拆分，再在模块内部按分层结构展开。
@@ -126,8 +120,6 @@ project-parent
 - `infrastructure` 只放基础设施能力，不承载具体业务模块
 - `integration` 只放第三方接入能力，不承载具体业务规则
 - `web` 或 `interfaces` 只负责入口适配，不承载核心业务规则
-
----
 
 ## 6. 分层职责与边界
 
@@ -383,8 +375,6 @@ integration
 - 直接拼装 Controller Request / Response
 - 直接承载业务状态流转
 
----
-
 ## 7. 命名规范
 
 ### 7.1 目录命名
@@ -421,9 +411,7 @@ integration
 
 ### 7.4 常量类命名
 
-禁止出现魔法字符串和魔法数字。
-
-常量类统一按类别命名，不要把所有内容塞进 `Constants`：
+禁止出现魔法字符串和魔法数字。常量类统一按类别命名，不要把所有内容塞进 `Constants`：
 
 - 错误码：`XxxErrorCodes`
 - 错误消息：`XxxErrorMessages`
@@ -477,9 +465,93 @@ integration
 - 枚举类统一使用 `XxxEnum` 结尾
 - 枚举项统一使用 `UPPER_SNAKE_CASE`
 
----
+## 8. 注释规范
 
-## 8. 数据库规范
+### 8.1 默认要求
+
+- AI 生成或修改代码时，默认主动补齐中文注释，不需要等待用户单独提出
+- 注释默认语言统一为中文
+- 注释必须服务于“可维护性”和“业务可读性”，不要写成噪音
+
+### 8.2 类级注释
+
+以下类型默认必须写类级中文注释：
+
+- 业务 Service / ServiceImpl
+- Domain Manager / Validator / Policy
+- Repo / RepoImpl
+- Controller / Assembler
+- 自定义注解与 AOP 切面
+- 第三方 Client / Properties / Adapter
+- 自定义异常、统一响应、全局异常处理类
+- 关键枚举、重要常量类
+
+类级注释至少说明：
+
+- 当前类职责
+- 所在分层
+- 关键协作对象
+- 边界约束或注意事项
+
+### 8.3 方法注释
+
+以下方法默认必须写中文方法注释：
+
+- `public` / `protected` 方法
+- Repo 查询方法和状态更新方法
+- Domain 核心规则方法
+- 第三方调用适配方法
+- 涉及事务、分布式锁、幂等、防抖、权限、审计、风控的方法
+
+方法注释建议包含：
+
+- 方法用途
+- 参数语义
+- 返回值语义
+- 可能抛出的业务异常
+- 事务、锁、重试、回调、副作用等约束
+
+### 8.4 字段注释
+
+以下字段建议补充中文注释：
+
+- 业务语义不直观的领域字段
+- 金额、状态、来源、原因等关键字段
+- 锁 Key 前缀、权限码、风控规则码、错误码、错误消息
+- 第三方配置项、签名字段、回调验签字段
+
+简单 DTO / VO 中名称非常直观的字段可不重复写注释。
+
+### 8.5 行内注释
+
+行内注释只写“为什么”，重点覆盖：
+
+- 状态机与状态流转前置条件
+- 金额口径与精度处理
+- 数据范围收敛点
+- 分布式锁粒度与锁键拼装依据
+- 幂等键选择依据
+- 事务边界与补偿点
+- 验签、重试、降级、兼容分支
+- 复杂 SQL 条件、排序、分页口径
+
+### 8.6 禁止事项
+
+禁止以下注释：
+
+- 只复述代码字面含义
+- 与实现不一致的过期注释
+- `TODO 后续处理`、`业务逻辑`、`处理数据` 这类空泛注释
+- 大段注释掉的旧代码
+- 中英文混杂但缺乏统一规范的注释
+
+### 8.7 修改代码时的要求
+
+- 只要修改了某个类或方法，就要同步检查并补齐其中文注释
+- 代码重构后必须同步更新注释，禁止保留旧语义注释
+- 评审时把“注释是否覆盖关键语义”作为必查项
+
+## 9. 数据库规范
 
 业务表默认字段：
 
@@ -501,11 +573,9 @@ integration
 - 索引围绕查询条件、排序字段、唯一约束设计
 - 禁止把数据范围配置成 SQL 字符串片段
 
----
+## 10. 安全、权限与风控规范
 
-## 9. 安全、权限与风控规范
-
-### 9.1 JWT 鉴权
+### 10.1 JWT 鉴权
 
 - `/api/**` 只接受前台 Token
 - `/admin/**` 只接受后台 Token
@@ -515,14 +585,14 @@ integration
 - 前后台 Token 必须区分 `tokenType`、`issuer`、`audience`
 - 前后台缓存、黑名单、Refresh Token 命名空间必须隔离
 
-### 9.2 长期登录
+### 10.2 长期登录
 
 - 不允许超长 Access Token 直接长期登录
 - 必须采用 `短效 access token + 长效 refresh token`
 - Refresh Token 必须可控、可吊销、可失效、可审计
 - Logout 时至少吊销当前操作人的 Refresh Token
 
-### 9.3 五层权限模型
+### 10.3 五层权限模型
 
 统一采用：
 
@@ -540,7 +610,7 @@ integration
 - 敏感字段脱敏必须在后端完成
 - 查看敏感字段明文必须单独授权并写审计日志
 
-### 9.4 防抖、幂等、并发控制
+### 10.4 防抖、幂等、并发控制
 
 适用场景：
 
@@ -564,7 +634,7 @@ integration
 - 锁获取失败时统一抛业务异常，不允许静默吞掉
 - 锁 Key 必须稳定、可预测、可审计
 
-### 9.5 日志与审计
+### 10.5 日志与审计
 
 必须具备：
 
@@ -582,9 +652,7 @@ integration
 - `@PermissionCheck`
 - `@NoRepeatSubmit`
 
----
-
-## 10. 异常与响应规范
+## 11. 异常、日志与响应规范
 
 统一原则：
 
@@ -592,6 +660,7 @@ integration
 - 不允许每个 Controller 单独写大段 `try/catch`
 - 异常分类必须明确
 - 前后台统一使用同一套响应结构
+- 统一响应优先使用带泛型的 `CommonResponse<T>`，不要到处使用原始类型
 
 推荐异常类：
 
@@ -610,9 +679,77 @@ integration
 - 日志必须带 `TraceId`
 - 禁止打印密码、Token、验证码、银行卡号等敏感信息
 
----
+异常处理细则：
 
-## 11. 第三方接入规范
+- 不要直接抛裸 `RuntimeException`
+- `catch` 后如重新抛出，必须补充上下文语义
+- 第三方异常要映射成业务可理解的异常类型
+- Controller 只负责抛出语义明确的异常，不负责拼装复杂错误响应
+
+## 12. 代码质量与可维护性规范
+
+### 12.1 单一职责与抽象层级
+
+- 一个类尽量聚焦一个主要职责
+- 一个方法只做一个抽象层级的事情
+- 当一个方法同时混杂“参数校验 + 业务编排 + 状态流转 + 持久化细节 + 第三方调用”时，必须拆分
+
+### 12.2 方法体控制
+
+- 优先使用卫语句和早返回，降低嵌套深度
+- 普通业务方法默认不应超过 3 层嵌套
+- 方法过长、分支过多、可读性下降时，优先抽私有方法或专用组件
+- 复杂业务优先抽取 `XxxManager`、`XxxValidator`、`XxxPolicy`
+
+### 12.3 空值与返回值
+
+- 列表、分页、批量结果默认不返回 `null`
+- 查无数据时优先返回空集合、空页对象或显式业务异常
+- 不要把 `null` 当成跨层协议的常规语义
+
+### 12.4 校验分层
+
+- `web / interfaces` 负责格式校验、必填校验、长度校验、枚举值校验
+- `domain` 或 `validator` 负责业务不变量、状态合法性、金额口径校验
+- Repo 不承载业务规则校验
+
+### 12.5 事务与一致性
+
+- 事务默认放在 `business` 编排层
+- 不要把事务散落在 Controller、Repo、Client
+- 涉及资金链路、状态流转、流水写入时，要明确事务边界和补偿策略
+- 涉及回调幂等时，要显式说明幂等键来源
+
+### 12.6 异常处理质量
+
+- 不允许吞异常
+- 只有在“转换异常语义、补充上下文、重试、降级、日志增强”时才允许 `catch`
+- 业务异常与系统异常必须区分清楚
+- 不要把所有异常都映射成同一个模糊错误码
+
+### 12.7 查询与性能
+
+- 批量处理优先批量查库、批量写库，避免循环内查库形成 N+1
+- 多表联查、统计、导出、对账统一进入 XML
+- 分页查询必须保证排序口径明确
+- 对高频接口明确缓存、锁、幂等或防抖策略
+
+### 12.8 可读性与可评审性
+
+- 常量、枚举、异常、响应结构要语义清晰
+- 不允许散写业务字面量
+- 装配器与转换器保持纯粹，不写业务规则
+- 重要类、方法、关键分支必须带中文注释
+- 代码提交前至少完成一次“命名 / 注释 / 边界 / 异常 / 空值 / 重复逻辑”自检
+
+### 12.9 金额与时间
+
+- 金额统一使用 `BigDecimal`
+- 禁止使用 `double` / `float` 做金额计算
+- 时间语义统一使用明确类型，如 `LocalDateTime`、`LocalDate`
+- 不要跨层用裸字符串承载复杂时间语义
+
+## 13. 第三方接入规范
 
 统一规则：
 
@@ -644,9 +781,7 @@ integration
    └─ ai
 ```
 
----
-
-## 12. 财务项目附加规则
+## 14. 财务项目附加规则
 
 只要项目涉及资金链路，额外强制：
 
@@ -659,11 +794,9 @@ integration
 - 审计日志必须记录前值、后值、原因、`TraceId`
 - 对账必须能校验事实表与资金流水一致
 
----
+## 15. 类模板清单
 
-## 13. 类模板清单
-
-### 13.1 infrastructure 层最少应具备
+### 15.1 infrastructure 层最少应具备
 
 ```text
 infrastructure
@@ -706,7 +839,7 @@ infrastructure
       └─ XxxAiClient.java
 ```
 
-### 13.2 persistence 层最少应具备
+### 15.2 persistence 层最少应具备
 
 ```text
 persistence
@@ -726,7 +859,7 @@ persistence
       └─ OrderQueryMapper.xml
 ```
 
-### 13.3 business 层最少应具备
+### 15.3 business 层最少应具备
 
 ```text
 business
@@ -759,7 +892,7 @@ business
          └─ OrderPolicy.java
 ```
 
-### 13.4 web / interfaces 层最少应具备
+### 15.4 web / interfaces 层最少应具备
 
 ```text
 web
@@ -773,7 +906,7 @@ web
          └─ AdminOrderWebAssembler.java
 ```
 
-### 13.5 integration 层最少应具备
+### 15.5 integration 层最少应具备
 
 ```text
 integration
@@ -792,9 +925,7 @@ integration
       └─ XxxAiClient.java
 ```
 
----
-
-## 14. 单流程标准写法
+## 16. 单流程标准写法
 
 以“后台确认完单”为例，标准链路如下：
 
@@ -807,56 +938,66 @@ integration
 7. `persistence` 使用 Wrapper 落库。
 8. AOP 或事件统一记录日志、审计和风控信息。
 
----
+## 17. 代码示例
 
-## 15. 代码示例
-
-### 15.1 基础实体示例
+### 17.1 基础实体示例
 
 ```java
 /**
- * 业务基础实体
+ * 业务基础实体。
+ * <p>
+ * 统一沉淀审计字段和逻辑删除字段，供各业务实体继承。
  */
 public class BaseDO {
 
     /**
-     * 创建时间
+     * 创建时间。
      */
     private LocalDateTime createdAt;
 
     /**
-     * 更新时间
+     * 更新时间。
      */
     private LocalDateTime updatedAt;
 
     /**
-     * 创建人
+     * 创建人。
      */
     private Long createdBy;
 
     /**
-     * 更新人
+     * 更新人。
      */
     private Long updatedBy;
 
     /**
-     * 逻辑删除标记
+     * 逻辑删除标记。
      */
     private Integer isDeleted;
 
     /**
-     * 删除时间
+     * 删除时间。
      */
     private LocalDateTime deletedAt;
 }
 ```
 
-### 15.2 常量与枚举示例
+### 17.2 常量与枚举示例
 
 ```java
+/**
+ * 订单业务错误码常量。
+ */
 public final class OrderErrorCodes {
 
+    /**
+     * 订单不存在。
+     */
     public static final String ORDER_NOT_FOUND = "ORDER_NOT_FOUND";
+
+    /**
+     * 订单状态不允许确认。
+     */
     public static final String ORDER_STATUS_INVALID = "ORDER_STATUS_INVALID";
 
     private OrderErrorCodes() {
@@ -865,8 +1006,35 @@ public final class OrderErrorCodes {
 ```
 
 ```java
+/**
+ * 订单业务错误消息常量。
+ */
+public final class OrderErrorMessages {
+
+    /**
+     * 订单不存在。
+     */
+    public static final String ORDER_NOT_FOUND = "订单不存在";
+
+    /**
+     * 当前订单状态不允许确认。
+     */
+    public static final String ORDER_STATUS_INVALID = "订单状态不允许确认";
+
+    private OrderErrorMessages() {
+    }
+}
+```
+
+```java
+/**
+ * 订单权限码常量。
+ */
 public final class OrderPermissionCodes {
 
+    /**
+     * 后台确认订单权限。
+     */
     public static final String ADMIN_ORDER_CONFIRM = "admin-order-confirm";
 
     private OrderPermissionCodes() {
@@ -875,8 +1043,14 @@ public final class OrderPermissionCodes {
 ```
 
 ```java
+/**
+ * 订单风控规则码常量。
+ */
 public final class OrderRiskRuleCodes {
 
+    /**
+     * 订单确认风控规则。
+     */
     public static final String ORDER_CONFIRM_AUDIT = "ORDER_CONFIRM_AUDIT";
 
     private OrderRiskRuleCodes() {
@@ -885,8 +1059,14 @@ public final class OrderRiskRuleCodes {
 ```
 
 ```java
+/**
+ * 订单防重复提交 Key 常量。
+ */
 public final class OrderNoRepeatKeys {
 
+    /**
+     * 后台确认订单防重 Key 前缀。
+     */
     public static final String ADMIN_ORDER_CONFIRM = "admin:order:confirm";
 
     private OrderNoRepeatKeys() {
@@ -895,13 +1075,25 @@ public final class OrderNoRepeatKeys {
 ```
 
 ```java
+/**
+ * 订单分布式锁 Key 常量。
+ */
 public final class OrderLockKeys {
 
+    /**
+     * 确认订单锁前缀。
+     */
     public static final String CONFIRM_ORDER_PREFIX = "order:confirm:";
 
     private OrderLockKeys() {
     }
 
+    /**
+     * 构造确认订单锁 Key。
+     *
+     * @param orderNo 订单号
+     * @return 分布式锁 Key
+     */
     public static String confirmOrder(String orderNo) {
         return CONFIRM_ORDER_PREFIX + orderNo;
     }
@@ -909,9 +1101,19 @@ public final class OrderLockKeys {
 ```
 
 ```java
+/**
+ * 订单接口路径常量。
+ */
 public final class OrderApiPaths {
 
+    /**
+     * 后台订单基础路径。
+     */
     public static final String ADMIN_BASE = "/admin/order";
+
+    /**
+     * 后台确认订单路径。
+     */
     public static final String CONFIRM_ORDER = "/confirm-order";
 
     private OrderApiPaths() {
@@ -920,12 +1122,26 @@ public final class OrderApiPaths {
 ```
 
 ```java
+/**
+ * 订单状态枚举。
+ */
 @Getter
 @RequiredArgsConstructor
 public enum OrderStatusEnum {
 
+    /**
+     * 待处理。
+     */
     PENDING(1, "待处理"),
+
+    /**
+     * 已确认。
+     */
     CONFIRMED(2, "已确认"),
+
+    /**
+     * 已拒绝。
+     */
     REJECTED(3, "已拒绝");
 
     private final Integer code;
@@ -933,9 +1149,14 @@ public enum OrderStatusEnum {
 }
 ```
 
-### 15.3 Controller / Request / Assembler 示例
+### 17.3 Controller / Request / Assembler 示例
 
 ```java
+/**
+ * 后台订单管理控制器。
+ * <p>
+ * 只负责请求接收、参数校验、命令装配和统一响应，不直接承载业务规则。
+ */
 @RestController
 @Validated
 @RequiredArgsConstructor
@@ -945,6 +1166,12 @@ public class AdminOrderController {
     private final OrderService orderService;
     private final AdminOrderWebAssembler adminOrderWebAssembler;
 
+    /**
+     * 后台确认订单。
+     *
+     * @param request 确认订单请求
+     * @return 通用成功响应
+     */
     @PostMapping(OrderApiPaths.CONFIRM_ORDER)
     public CommonResponse<Void> confirmOrder(@Valid @RequestBody ConfirmOrderRequest request) {
         ConfirmOrderCommand command = adminOrderWebAssembler.toConfirmOrderCommand(request);
@@ -955,63 +1182,121 @@ public class AdminOrderController {
 ```
 
 ```java
+/**
+ * 后台确认订单请求参数。
+ */
+@Getter
+@Setter
 public class ConfirmOrderRequest {
 
+    /**
+     * 订单号。
+     */
     @NotBlank(message = "订单号不能为空")
     private String orderNo;
 
+    /**
+     * 确认备注。
+     */
     @Size(max = 200, message = "备注长度不能超过 200")
     private String remark;
 }
 ```
 
 ```java
+/**
+ * 后台订单 Web 装配器。
+ * <p>
+ * 负责将入口层请求对象转换为业务层命令对象，不承载业务规则。
+ */
 @Component
 public class AdminOrderWebAssembler {
 
+    /**
+     * 将确认订单请求转换为业务命令。
+     *
+     * @param request 请求对象
+     * @return 确认订单命令
+     */
     public ConfirmOrderCommand toConfirmOrderCommand(ConfirmOrderRequest request) {
         return ConfirmOrderCommand.builder()
-                .orderNo(request.getOrderNo())
-                .remark(request.getRemark())
-                .build();
+            .orderNo(request.getOrderNo())
+            .remark(request.getRemark())
+            .build();
     }
 }
 ```
 
-### 15.4 Command / Service / Domain 示例
+### 17.4 Command / Service / Domain 示例
 
 ```java
+/**
+ * 确认订单命令。
+ */
 @Getter
 @Builder
 public class ConfirmOrderCommand {
 
+    /**
+     * 订单号。
+     */
     private final String orderNo;
+
+    /**
+     * 确认备注。
+     */
     private final String remark;
 }
 ```
 
 ```java
+/**
+ * 订单业务服务。
+ */
 public interface OrderService {
 
+    /**
+     * 确认订单。
+     *
+     * @param command 确认订单命令
+     */
     void confirmOrder(ConfirmOrderCommand command);
 }
 ```
 
 ```java
+/**
+ * 订单领域管理器。
+ * <p>
+ * 负责封装订单聚合内的状态校验和状态流转规则。
+ */
 @Component
 public class OrderManager {
 
+    /**
+     * 校验订单是否允许确认。
+     *
+     * @param orderDO 订单实体
+     */
     public void validateCanConfirm(OrderDO orderDO) {
         if (!OrderStatusEnum.PENDING.getCode().equals(orderDO.getStatus())) {
-            throw new BizException(OrderErrorCodes.ORDER_STATUS_INVALID, "订单状态不允许确认");
+            throw new BizException(
+                OrderErrorCodes.ORDER_STATUS_INVALID,
+                OrderErrorMessages.ORDER_STATUS_INVALID
+            );
         }
     }
 }
 ```
 
-### 15.5 ServiceImpl 示例
+### 17.5 ServiceImpl 示例
 
 ```java
+/**
+ * 订单业务服务实现。
+ * <p>
+ * 负责后台确认订单用例的统一编排，包括权限、防重、事务和分布式锁控制。
+ */
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
@@ -1020,67 +1305,127 @@ public class OrderServiceImpl implements OrderService {
     private final OrderManager orderManager;
     private final DistributedLockExecutor distributedLockExecutor;
 
+    /**
+     * 确认订单。
+     *
+     * @param command 确认订单命令
+     */
     @Override
     @PermissionCheck(code = OrderPermissionCodes.ADMIN_ORDER_CONFIRM, dataScope = true)
     @NoRepeatSubmit(keyPrefix = OrderNoRepeatKeys.ADMIN_ORDER_CONFIRM, expireSeconds = 5)
     @Transactional(rollbackFor = Exception.class)
     public void confirmOrder(ConfirmOrderCommand command) {
         distributedLockExecutor.executeWithLock(
-                OrderLockKeys.confirmOrder(command.getOrderNo()),
-                3000L,
-                10000L,
-                () -> {
-                    OrderDO orderDO = orderRepo.findByOrderNo(command.getOrderNo());
-                    if (orderDO == null) {
-                        throw new BizException(OrderErrorCodes.ORDER_NOT_FOUND, "订单不存在");
-                    }
+            OrderLockKeys.confirmOrder(command.getOrderNo()),
+            3000L,
+            10000L,
+            () -> {
+                // 先按业务主键查询订单，确保后续状态校验和落库都围绕同一订单展开。
+                OrderDO orderDO = orderRepo.findByOrderNo(command.getOrderNo());
+                if (orderDO == null) {
+                    throw new BizException(
+                        OrderErrorCodes.ORDER_NOT_FOUND,
+                        OrderErrorMessages.ORDER_NOT_FOUND
+                    );
+                }
 
-                    orderManager.validateCanConfirm(orderDO);
-                    orderRepo.confirmOrder(orderDO.getId(), command.getRemark(), OrderStatusEnum.CONFIRMED.getCode());
-                });
+                // 状态流转前先做领域校验，避免非法状态重复确认。
+                orderManager.validateCanConfirm(orderDO);
+
+                // 在持有分布式锁期间完成状态更新，防止并发确认造成重复写入。
+                orderRepo.confirmOrder(
+                    orderDO.getId(),
+                    command.getRemark(),
+                    OrderStatusEnum.CONFIRMED.getCode()
+                );
+            }
+        );
     }
 }
 ```
 
-### 15.6 Repo / RepoImpl / XML 示例
+### 17.6 Repo / RepoImpl / XML 示例
 
 ```java
+/**
+ * 订单仓储接口。
+ */
 public interface OrderRepo {
 
+    /**
+     * 根据订单号查询订单。
+     *
+     * @param orderNo 订单号
+     * @return 订单实体，查无数据时返回 null
+     */
     OrderDO findByOrderNo(String orderNo);
 
+    /**
+     * 确认订单状态。
+     *
+     * @param id 订单主键
+     * @param remark 确认备注
+     * @param status 目标状态
+     */
     void confirmOrder(Long id, String remark, Integer status);
 }
 ```
 
 ```java
+/**
+ * 订单仓储实现。
+ * <p>
+ * 负责订单数据访问，不承载业务规则。
+ */
 @Repository
 @RequiredArgsConstructor
 public class OrderRepoImpl implements OrderRepo {
 
     private final OrderMapper orderMapper;
 
+    /**
+     * 根据订单号查询订单。
+     *
+     * @param orderNo 订单号
+     * @return 订单实体，查无数据时返回 null
+     */
     @Override
     public OrderDO findByOrderNo(String orderNo) {
         return orderMapper.selectOne(
-                Wrappers.lambdaQuery(OrderDO.class)
-                        .eq(OrderDO::getOrderNo, orderNo));
+            Wrappers.lambdaQuery(OrderDO.class)
+                .eq(OrderDO::getOrderNo, orderNo)
+        );
     }
 
+    /**
+     * 确认订单状态。
+     *
+     * @param id 订单主键
+     * @param remark 确认备注
+     * @param status 目标状态
+     */
     @Override
     public void confirmOrder(Long id, String remark, Integer status) {
         orderMapper.update(
-                null,
-                Wrappers.lambdaUpdate(OrderDO.class)
-                        .eq(OrderDO::getId, id)
-                        .set(OrderDO::getStatus, status)
-                        .set(OrderDO::getConfirmRemark, remark));
+            null,
+            Wrappers.lambdaUpdate(OrderDO.class)
+                .eq(OrderDO::getId, id)
+                .set(OrderDO::getStatus, status)
+                .set(OrderDO::getConfirmRemark, remark)
+        );
     }
 }
 ```
 
 ```xml
-<select id="selectOrderPage" resultType="com.example.persistence.order.dto.OrderQueryDTO">
+<!--
+  订单列表查询。
+  说明：
+  1. 仅用于复杂多表联查；
+  2. 排序口径固定为主键倒序；
+  3. 查询条件中的状态字段由业务层明确传入。
+-->
+<select id="selectOrderPage" resultType="com.example.order.dto.OrderPageDTO">
     SELECT
         o.id,
         o.order_no,
@@ -1088,55 +1433,96 @@ public class OrderRepoImpl implements OrderRepo {
         u.nickname AS user_name
     FROM biz_order o
     LEFT JOIN biz_user u ON u.id = o.user_id
-    <where>
-        <if test="status != null">
-            o.status = #{status}
-        </if>
-    </where>
+    WHERE o.status = #{status}
     ORDER BY o.id DESC
 </select>
 ```
 
-### 15.7 第三方 Client 示例
+### 17.7 第三方 Client 示例
 
 ```java
+/**
+ * AI 能力客户端。
+ */
 public interface AiClient {
 
+    /**
+     * 调用 AI 聊天能力。
+     *
+     * @param prompt 提示词
+     * @return 厂商返回文本
+     */
     String chat(String prompt);
 }
 ```
 
 ```java
+/**
+ * 某厂商 AI Client 适配实现。
+ * <p>
+ * 这里只做厂商请求封装，不承载业务规则。
+ */
 @Component
 @RequiredArgsConstructor
 public class XxxAiClient implements AiClient {
 
     private final AiProperties aiProperties;
 
+    /**
+     * 调用厂商 AI 接口。
+     *
+     * @param prompt 提示词
+     * @return 厂商返回文本
+     */
     @Override
     public String chat(String prompt) {
-        // 这里只做厂商请求封装，不写业务规则
+        // 这里只做厂商请求封装，不写业务规则。
         return "mock-response";
     }
 }
 ```
 
-### 15.8 全局异常处理示例
+### 17.8 全局异常处理示例
 
 ```java
+/**
+ * 全局异常处理器。
+ * <p>
+ * 统一收口接口异常并返回标准响应结构。
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /**
+     * 处理请求参数校验异常。
+     *
+     * @param exception 参数校验异常
+     * @return 失败响应
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public CommonResponse<Void> handleMethodArgumentNotValidException(MethodArgumentNotValidException exception) {
+    public CommonResponse<Void> handleMethodArgumentNotValidException(
+        MethodArgumentNotValidException exception
+    ) {
         return CommonResponse.fail("PARAM_ERROR", "请求参数不正确");
     }
 
+    /**
+     * 处理业务异常。
+     *
+     * @param exception 业务异常
+     * @return 失败响应
+     */
     @ExceptionHandler(BizException.class)
     public CommonResponse<Void> handleBizException(BizException exception) {
         return CommonResponse.fail(exception.getCode(), exception.getMessage());
     }
 
+    /**
+     * 处理未知异常。
+     *
+     * @param exception 未知异常
+     * @return 失败响应
+     */
     @ExceptionHandler(Exception.class)
     public CommonResponse<Void> handleException(Exception exception) {
         return CommonResponse.fail("SYSTEM_ERROR", "系统繁忙，请稍后重试");
@@ -1144,9 +1530,7 @@ public class GlobalExceptionHandler {
 }
 ```
 
----
-
-## 16. 测试与交付规范
+## 18. 测试与交付规范
 
 建议测试分层：
 
@@ -1160,6 +1544,8 @@ public class GlobalExceptionHandler {
 - 每个模块开发完成后，必须对该模块全部 API 做回归测试
 - 不能只测本次改动接口
 - 提测前必须输出模块级 API 回归清单与结果
+- 新增或修改的关键类、方法必须同步检查中文注释是否补齐
+- 评审清单中必须包含“命名、注释、边界、异常、空值、事务、锁、幂等、自测结果”项
 
 上线前检查：
 
@@ -1170,16 +1556,16 @@ public class GlobalExceptionHandler {
 - 是否把 Request 隔离在 `web` 或 `interfaces` 层
 - 是否补齐权限、幂等、分布式锁、审计、`TraceId`
 - 是否消除魔法字符串与魔法数字
+- 是否补齐关键类、关键方法、关键分支的中文注释
 
----
-
-## 17. 团队落地要求
+## 19. 团队落地要求
 
 建议团队按以下方式执行：
 
 1. 新项目创建时先放入本文档。
 2. 开发前先按项目或需求划分模块，再确认聚合、权限、数据范围、幂等、审计需求。
-3. 代码评审时按本文档逐项检查。
-4. 每个模块开发完成后，必须对该模块全部 API 完成回归测试。
-5. 提测前输出模块级回归清单与结果。
-6. 后续新增规则时优先更新本文档，不要散落在聊天记录里。
+3. 开发时默认把“中文注释”和“代码质量自检”作为交付标准的一部分。
+4. 代码评审时按本文档逐项检查。
+5. 每个模块开发完成后，必须对该模块全部 API 完成回归测试。
+6. 提测前输出模块级回归清单与结果。
+7. 后续新增规则时优先更新本文档，不要散落在聊天记录里。
