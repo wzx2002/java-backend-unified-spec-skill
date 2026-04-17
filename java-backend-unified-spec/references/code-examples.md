@@ -1,0 +1,755 @@
+# Java 后端目录模板与代码示例
+
+以下内容基于 Spring Boot + MVC + 常见 ORM + 常见缓存 / 分布式锁组件的参考落地风格编写，仅作为“常见实现示例”，不构成对具体框架、中间件或基础设施的强制绑定。项目已有等价能力时，优先沿用现有稳定实现。
+
+## 15. 类模板清单
+
+### 15.1 infrastructure 层常见参考组件
+
+```text
+infrastructure
+├─ security
+│  ├─ FrontSecurityConfig.java
+│  ├─ AdminSecurityConfig.java
+│  ├─ JwtTokenService.java
+│  ├─ FrontJwtAuthenticationFilter.java
+│  └─ AdminJwtAuthenticationFilter.java
+├─ mybatis
+│  ├─ MybatisPlusConfig.java
+│  └─ CommonMetaObjectHandler.java
+├─ lock
+│  ├─ DistributedLockExecutor.java
+│  └─ RedisDistributedLockExecutor.java
+├─ debounce
+│  ├─ NoRepeatSubmit.java
+│  └─ NoRepeatSubmitAspect.java
+├─ permission
+│  ├─ PermissionCheck.java
+│  └─ PermissionCheckAspect.java
+├─ log
+│  ├─ OperationLog.java
+│  ├─ SensitiveOperationLog.java
+│  └─ OperationLogAspect.java
+├─ risk
+│  ├─ RiskCheck.java
+│  └─ RiskCheckAspect.java
+├─ exception
+│  ├─ BizException.java
+│  ├─ PermissionException.java
+│  ├─ RiskControlException.java
+│  └─ GlobalExceptionHandler.java
+├─ response
+│  └─ CommonResponse.java
+└─ client
+   └─ ai
+      ├─ AiClient.java
+      ├─ AiProperties.java
+      └─ XxxAiClient.java
+```
+
+### 15.2 persistence 层常见目录模板
+
+```text
+persistence
+└─ order
+   ├─ model
+   │  └─ OrderDO.java
+   ├─ enums
+   │  └─ OrderStatusEnum.java
+   ├─ mapper
+   │  ├─ OrderMapper.java
+   │  └─ OrderQueryMapper.java
+   ├─ repo
+   │  └─ OrderRepo.java
+   ├─ repo/impl
+   │  └─ OrderRepoImpl.java
+   └─ mapper/xml
+      └─ OrderQueryMapper.xml
+```
+
+### 15.3 business 层常见目录模板
+
+```text
+business
+└─ order
+   ├─ command
+   │  └─ ConfirmOrderCommand.java
+   ├─ query
+   │  └─ OrderPageQuery.java
+   ├─ vo
+   │  └─ OrderVO.java
+   ├─ convert
+   │  └─ OrderConvert.java
+   ├─ service
+   │  └─ OrderService.java
+   ├─ service/impl
+   │  └─ OrderServiceImpl.java
+   ├─ constant
+   │  ├─ OrderErrorCodes.java
+   │  ├─ OrderErrorMessages.java
+   │  ├─ OrderPermissionCodes.java
+   │  ├─ OrderRiskRuleCodes.java
+   │  ├─ OrderLockKeys.java
+   │  └─ OrderNoRepeatKeys.java
+   └─ domain
+      ├─ manager
+      │  └─ OrderManager.java
+      ├─ validator
+      │  └─ OrderValidator.java
+      └─ policy
+         └─ OrderPolicy.java
+```
+
+### 15.4 web / interfaces 层常见目录模板
+
+```text
+web
+└─ admin
+   └─ order
+      ├─ controller
+      │  └─ AdminOrderController.java
+      ├─ request
+      │  └─ ConfirmOrderRequest.java
+      └─ assembler
+         └─ AdminOrderWebAssembler.java
+```
+
+### 15.5 integration 层常见目录模板
+
+```text
+integration
+└─ client
+   ├─ oss
+   │  ├─ OssClient.java
+   │  ├─ OssProperties.java
+   │  └─ XxxOssClient.java
+   ├─ tts
+   │  ├─ TtsClient.java
+   │  ├─ TtsProperties.java
+   │  └─ XxxTtsClient.java
+   └─ ai
+      ├─ AiClient.java
+      ├─ AiProperties.java
+      └─ XxxAiClient.java
+```
+
+## 16. 单流程标准写法
+
+以“后台确认完单”为例，标准链路如下：
+
+1. `web` 接收请求并完成参数校验。
+2. `web` 通过 Assembler 转成 `business` Command。
+3. `business` 统一处理权限、防抖、日志、事务。
+4. `business` 在业务主键维度执行统一并发控制策略，例如分布式锁。
+5. `business` 调用 `persistence` 查询数据。
+6. `domain` 校验状态并处理状态流转。
+7. `persistence` 使用项目既有数据访问组件落库。
+8. AOP 或事件统一记录日志、审计和风控信息。
+
+## 17. 代码示例
+
+以下示例只展示一种可参考实现风格，不构成对特定框架、中间件或 ORM 的强制绑定。
+
+### 17.1 基础实体示例
+
+```java
+/**
+ * 业务基础实体。
+ * <p>
+ * 统一沉淀审计字段和逻辑删除字段，供各业务实体继承。
+ */
+public class BaseDO {
+
+    /**
+     * 创建时间。
+     */
+    private LocalDateTime createdAt;
+
+    /**
+     * 更新时间。
+     */
+    private LocalDateTime updatedAt;
+
+    /**
+     * 创建人。
+     */
+    private Long createdBy;
+
+    /**
+     * 更新人。
+     */
+    private Long updatedBy;
+
+    /**
+     * 逻辑删除标记。
+     */
+    private Integer isDeleted;
+
+    /**
+     * 删除时间。
+     */
+    private LocalDateTime deletedAt;
+}
+```
+
+### 17.2 常量与枚举示例
+
+```java
+/**
+ * 订单业务错误码常量。
+ */
+public final class OrderErrorCodes {
+
+    /**
+     * 订单不存在。
+     */
+    public static final String ORDER_NOT_FOUND = "ORDER_NOT_FOUND";
+
+    /**
+     * 订单状态不允许确认。
+     */
+    public static final String ORDER_STATUS_INVALID = "ORDER_STATUS_INVALID";
+
+    private OrderErrorCodes() {
+    }
+}
+```
+
+```java
+/**
+ * 订单业务错误消息常量。
+ */
+public final class OrderErrorMessages {
+
+    /**
+     * 订单不存在。
+     */
+    public static final String ORDER_NOT_FOUND = "订单不存在";
+
+    /**
+     * 当前订单状态不允许确认。
+     */
+    public static final String ORDER_STATUS_INVALID = "订单状态不允许确认";
+
+    private OrderErrorMessages() {
+    }
+}
+```
+
+```java
+/**
+ * 订单权限码常量。
+ */
+public final class OrderPermissionCodes {
+
+    /**
+     * 后台确认订单权限。
+     */
+    public static final String ADMIN_ORDER_CONFIRM = "admin-order-confirm";
+
+    private OrderPermissionCodes() {
+    }
+}
+```
+
+```java
+/**
+ * 订单风控规则码常量。
+ */
+public final class OrderRiskRuleCodes {
+
+    /**
+     * 订单确认风控规则。
+     */
+    public static final String ORDER_CONFIRM_AUDIT = "ORDER_CONFIRM_AUDIT";
+
+    private OrderRiskRuleCodes() {
+    }
+}
+```
+
+```java
+/**
+ * 订单防重复提交 Key 常量。
+ */
+public final class OrderNoRepeatKeys {
+
+    /**
+     * 后台确认订单防重 Key 前缀。
+     */
+    public static final String ADMIN_ORDER_CONFIRM = "admin:order:confirm";
+
+    private OrderNoRepeatKeys() {
+    }
+}
+```
+
+```java
+/**
+ * 订单分布式锁 Key 常量。
+ */
+public final class OrderLockKeys {
+
+    /**
+     * 确认订单锁前缀。
+     */
+    public static final String CONFIRM_ORDER_PREFIX = "order:confirm:";
+
+    private OrderLockKeys() {
+    }
+
+    /**
+     * 构造确认订单锁 Key。
+     *
+     * @param orderNo 订单号
+     * @return 分布式锁 Key
+     */
+    public static String confirmOrder(String orderNo) {
+        return CONFIRM_ORDER_PREFIX + orderNo;
+    }
+}
+```
+
+```java
+/**
+ * 订单接口路径常量。
+ */
+public final class OrderApiPaths {
+
+    /**
+     * 后台订单基础路径。
+     */
+    public static final String ADMIN_BASE = "/admin/order";
+
+    /**
+     * 后台确认订单路径。
+     */
+    public static final String CONFIRM_ORDER = "/confirm-order";
+
+    private OrderApiPaths() {
+    }
+}
+```
+
+```java
+/**
+ * 订单状态枚举。
+ */
+@Getter
+@RequiredArgsConstructor
+public enum OrderStatusEnum {
+
+    /**
+     * 待处理。
+     */
+    PENDING(1, "待处理"),
+
+    /**
+     * 已确认。
+     */
+    CONFIRMED(2, "已确认"),
+
+    /**
+     * 已拒绝。
+     */
+    REJECTED(3, "已拒绝");
+
+    private final Integer code;
+    private final String description;
+
+    /**
+     * 判断是否为待处理状态。
+     *
+     * @param code 状态编码
+     * @return 是否为待处理
+     */
+    public static boolean isPending(Integer code) {
+        return PENDING.getCode().equals(code);
+    }
+}
+```
+
+### 17.3 Controller / Request / Assembler 示例
+
+```java
+/**
+ * 后台订单管理控制器。
+ * <p>
+ * 只负责请求接收、参数校验、命令装配和统一响应，不直接承载业务规则。
+ */
+@RestController
+@Validated
+@RequiredArgsConstructor
+@RequestMapping(OrderApiPaths.ADMIN_BASE)
+public class AdminOrderController {
+
+    private final OrderService orderService;
+    private final AdminOrderWebAssembler adminOrderWebAssembler;
+
+    /**
+     * 后台确认订单。
+     *
+     * @param request 确认订单请求
+     * @return 通用成功响应
+     */
+    @PostMapping(OrderApiPaths.CONFIRM_ORDER)
+    public CommonResponse<Void> confirmOrder(@Valid @RequestBody ConfirmOrderRequest request) {
+        ConfirmOrderCommand command = adminOrderWebAssembler.toConfirmOrderCommand(request);
+        orderService.confirmOrder(command);
+        return CommonResponse.success();
+    }
+}
+```
+
+```java
+/**
+ * 后台确认订单请求参数。
+ */
+@Getter
+@Setter
+public class ConfirmOrderRequest {
+
+    /**
+     * 订单号。
+     */
+    @NotBlank(message = "订单号不能为空")
+    private String orderNo;
+
+    /**
+     * 确认备注。
+     */
+    @Size(max = 200, message = "备注长度不能超过 200")
+    private String remark;
+}
+```
+
+```java
+/**
+ * 后台订单 Web 装配器。
+ * <p>
+ * 负责将入口层请求对象转换为业务层命令对象，不承载业务规则。
+ */
+@Component
+public class AdminOrderWebAssembler {
+
+    /**
+     * 将确认订单请求转换为业务命令。
+     *
+     * @param request 请求对象
+     * @return 确认订单命令
+     */
+    public ConfirmOrderCommand toConfirmOrderCommand(ConfirmOrderRequest request) {
+        return ConfirmOrderCommand.builder()
+            .orderNo(request.getOrderNo())
+            .remark(request.getRemark())
+            .build();
+    }
+}
+```
+
+### 17.4 Command / Service / Domain 示例
+
+```java
+/**
+ * 确认订单命令。
+ */
+@Getter
+@Builder
+public class ConfirmOrderCommand {
+
+    /**
+     * 订单号。
+     */
+    private final String orderNo;
+
+    /**
+     * 确认备注。
+     */
+    private final String remark;
+}
+```
+
+```java
+/**
+ * 订单业务服务。
+ */
+public interface OrderService {
+
+    /**
+     * 确认订单。
+     *
+     * @param command 确认订单命令
+     */
+    void confirmOrder(ConfirmOrderCommand command);
+}
+```
+
+```java
+/**
+ * 订单领域管理器。
+ * <p>
+ * 负责封装订单聚合内的状态校验和状态流转规则。
+ */
+@Component
+public class OrderManager {
+
+    /**
+     * 校验订单是否允许确认。
+     *
+     * @param orderDO 订单实体
+     */
+    public void validateCanConfirm(OrderDO orderDO) {
+        Validate.isTrue(
+            OrderStatusEnum.isPending(orderDO.getStatus()),
+            OrderErrorMessages.ORDER_STATUS_INVALID
+        );
+    }
+}
+```
+
+### 17.5 ServiceImpl 示例
+
+```java
+/**
+ * 订单业务服务实现。
+ * <p>
+ * 负责后台确认订单用例的统一编排，包括权限、防重、事务和分布式锁控制。
+ */
+@Service
+@RequiredArgsConstructor
+public class OrderServiceImpl implements OrderService {
+
+    private final OrderRepo orderRepo;
+    private final OrderManager orderManager;
+    private final DistributedLockExecutor distributedLockExecutor;
+
+    /**
+     * 确认订单。
+     *
+     * @param command 确认订单命令
+     */
+    @Override
+    @PermissionCheck(code = OrderPermissionCodes.ADMIN_ORDER_CONFIRM, dataScope = true)
+    @NoRepeatSubmit(keyPrefix = OrderNoRepeatKeys.ADMIN_ORDER_CONFIRM, expireSeconds = 5)
+    @Transactional(rollbackFor = Exception.class)
+    public void confirmOrder(ConfirmOrderCommand command) {
+        distributedLockExecutor.executeWithLock(
+            OrderLockKeys.confirmOrder(command.getOrderNo()),
+            3000L,
+            10000L,
+            () -> {
+                // 先按业务主键查询订单，确保后续状态校验和落库都围绕同一订单展开。
+                OrderDO orderDO = orderRepo.findByOrderNo(command.getOrderNo());
+                Validate.notNull(orderDO, OrderErrorMessages.ORDER_NOT_FOUND);
+
+                // 状态流转前先做领域校验，避免非法状态重复确认。
+                orderManager.validateCanConfirm(orderDO);
+
+                // 在持有分布式锁期间完成状态更新，防止并发确认造成重复写入。
+                orderRepo.confirmOrder(
+                    orderDO.getId(),
+                    command.getRemark(),
+                    OrderStatusEnum.CONFIRMED.getCode()
+                );
+            }
+        );
+    }
+}
+```
+
+### 17.6 Repo / RepoImpl / XML 示例
+
+```java
+/**
+ * 订单仓储接口。
+ */
+public interface OrderRepo {
+
+    /**
+     * 根据订单号查询订单。
+     *
+     * @param orderNo 订单号
+     * @return 订单实体，查无数据时返回 null
+     */
+    OrderDO findByOrderNo(String orderNo);
+
+    /**
+     * 确认订单状态。
+     *
+     * @param id 订单主键
+     * @param remark 确认备注
+     * @param status 目标状态
+     */
+    void confirmOrder(Long id, String remark, Integer status);
+}
+```
+
+```java
+/**
+ * 订单仓储实现。
+ * <p>
+ * 负责订单数据访问，不承载业务规则。
+ */
+@Repository
+@RequiredArgsConstructor
+public class OrderRepoImpl implements OrderRepo {
+
+    private final OrderMapper orderMapper;
+
+    /**
+     * 根据订单号查询订单。
+     *
+     * @param orderNo 订单号
+     * @return 订单实体，查无数据时返回 null
+     */
+    @Override
+    public OrderDO findByOrderNo(String orderNo) {
+        return orderMapper.selectOne(
+            Wrappers.lambdaQuery(OrderDO.class)
+                .eq(OrderDO::getOrderNo, orderNo)
+        );
+    }
+
+    /**
+     * 确认订单状态。
+     *
+     * @param id 订单主键
+     * @param remark 确认备注
+     * @param status 目标状态
+     */
+    @Override
+    public void confirmOrder(Long id, String remark, Integer status) {
+        orderMapper.update(
+            null,
+            Wrappers.lambdaUpdate(OrderDO.class)
+                .eq(OrderDO::getId, id)
+                .set(OrderDO::getStatus, status)
+                .set(OrderDO::getConfirmRemark, remark)
+        );
+    }
+}
+```
+
+```xml
+<!--
+  订单列表查询。
+  说明：
+  1. 仅用于复杂多表联查；
+  2. 排序口径固定为主键倒序；
+  3. 查询条件中的状态字段由业务层明确传入。
+-->
+<select id="selectOrderPage" resultType="com.example.order.dto.OrderPageDTO">
+    SELECT
+        o.id,
+        o.order_no,
+        o.status,
+        u.nickname AS user_name
+    FROM biz_order o
+    LEFT JOIN biz_user u ON u.id = o.user_id
+    WHERE o.status = #{status}
+    ORDER BY o.id DESC
+</select>
+```
+
+### 17.7 第三方 Client 示例
+
+```java
+/**
+ * AI 能力客户端。
+ */
+public interface AiClient {
+
+    /**
+     * 调用 AI 聊天能力。
+     *
+     * @param prompt 提示词
+     * @return 厂商返回文本
+     */
+    String chat(String prompt);
+}
+```
+
+```java
+/**
+ * 某厂商 AI Client 适配实现。
+ * <p>
+ * 这里只做厂商请求封装，不承载业务规则。
+ */
+@Component
+@RequiredArgsConstructor
+public class XxxAiClient implements AiClient {
+
+    private final AiProperties aiProperties;
+
+    /**
+     * 调用厂商 AI 接口。
+     *
+     * @param prompt 提示词
+     * @return 厂商返回文本
+     */
+    @Override
+    public String chat(String prompt) {
+        // 这里只做厂商请求封装，不写业务规则。
+        return "mock-response";
+    }
+}
+```
+
+### 17.8 全局异常处理示例
+
+```java
+/**
+ * 全局异常处理器。
+ * <p>
+ * 统一收口接口异常并返回标准响应结构。
+ */
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    /**
+     * 处理请求参数校验异常。
+     *
+     * @param exception 参数校验异常
+     * @return 失败响应
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public CommonResponse<Void> handleMethodArgumentNotValidException(
+        MethodArgumentNotValidException exception
+    ) {
+        return CommonResponse.fail("PARAM_ERROR", "请求参数不正确");
+    }
+
+    /**
+     * 处理业务异常。
+     *
+     * @param exception 业务异常
+     * @return 失败响应
+     */
+    @ExceptionHandler(BizException.class)
+    public CommonResponse<Void> handleBizException(BizException exception) {
+        return CommonResponse.fail(exception.getCode(), exception.getMessage());
+    }
+
+    /**
+     * 处理统一前置校验异常。
+     *
+     * @param exception 前置校验异常
+     * @return 失败响应
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public CommonResponse<Void> handleValidateException(IllegalArgumentException exception) {
+        return CommonResponse.fail("PARAM_ERROR", exception.getMessage());
+    }
+
+    /**
+     * 处理未知异常。
+     *
+     * @param exception 未知异常
+     * @return 失败响应
+     */
+    @ExceptionHandler(Exception.class)
+    public CommonResponse<Void> handleException(Exception exception) {
+        return CommonResponse.fail("SYSTEM_ERROR", "系统繁忙，请稍后重试");
+    }
+}
+```
