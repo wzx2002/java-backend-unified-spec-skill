@@ -1,6 +1,6 @@
 # java-backend-unified-spec-skill
 
-Unified Java backend standards and reusable skill for module-first architecture, strict naming conventions, detailed directory rules, default Chinese comments, third-party integration boundaries, explicit concurrency strategy, and full module API regression.
+Unified Java backend standards and reusable skill for module-first architecture, strict naming conventions, detailed directory rules, default Chinese comments, explicit security baselines, maintainability governance, third-party integration boundaries, and full module API regression.
 
 ## Included Skill
 
@@ -12,9 +12,14 @@ Unified Java backend standards and reusable skill for module-first architecture,
 - Use `interfaces` for multi-entry projects
 - Optional `integration` module for large third-party adapters
 - Detailed directory, package, and class naming rules
+- Clear execution levels with `必须 / 推荐 / 可选`
 - Strict category-based constant naming such as `XxxErrorCodes`, `XxxPermissionCodes`, `XxxRiskRuleCodes`, `XxxNoRepeatKeys`, `XxxLockKeys`
 - `XxxEnum` suffix for enums
 - Default Chinese comments for generated or modified Java backend code, including clear field-level comments for key business fields
+- Explicit secure baseline for secrets, sensitive data, uploads/downloads, callbacks, and release checks
+- Explicit maintainability governance for compatibility, module README, ADR, and automated quality gates
+- Reusable module README / ADR / PR checklist / review checklist / release checklist templates
+- Example implementations positioned as common reference styles instead of mandatory technology choices
 - No magic strings
 - Explicit, centralized concurrency strategy
 - Full API regression after each module is completed
@@ -26,7 +31,14 @@ java-backend-unified-spec-skill/
 `-- java-backend-unified-spec/
     |-- SKILL.md
     `-- references/
-        `-- java-backend-standard.md
+        |-- java-backend-standard.md
+        |-- architecture-and-boundaries.md
+        |-- coding-standards.md
+        |-- security-integration-and-delivery.md
+        |-- secure-baseline.md
+        |-- evolution-and-governance.md
+        |-- templates-and-checklists.md
+        `-- code-examples.md
 ```
 
 ## Install
