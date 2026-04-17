@@ -405,8 +405,7 @@ public class AdminOrderController {
 /**
  * 后台确认订单请求参数。
  */
-@Getter
-@Setter
+@Data
 public class ConfirmOrderRequest {
 
     /**

@@ -134,7 +134,7 @@
 - 关键协作对象
 - 边界约束或注意事项
 
-类可以按需要使用注解，例如 `@Builder`、`@Getter`、`@Setter`、`@Data`、`@NoArgsConstructor`、`@AllArgsConstructor`、`@Slf4j`、`@Service`、`@Component`、`@Configuration` 等，但注解不能替代类注释本身，也不能替代关键字段和关键方法的语义说明。
+类可以按需要使用注解，例如 `@Builder`、`@Getter`、`@Data`、`@NoArgsConstructor`、`@AllArgsConstructor`、`@Slf4j`、`@Service`、`@Component`、`@Configuration` 等，但注解不能替代类注释本身，也不能替代关键字段和关键方法的语义说明。
 
 ### 8.3 方法注释
 
@@ -264,7 +264,7 @@ public class OrderCreateResultVO {
 
 约束说明：
 
-- `@Builder`、`@Getter`、`@Setter` 等注解可以正常使用
+- `@Data`、`@Getter`、`@Builder` 等注解可以正常使用
 - 注解用于减少样板代码，不承担业务语义表达职责
 - 只要字段本身承载关键业务语义，仍然要写清晰的字段注释
 
@@ -272,7 +272,10 @@ public class OrderCreateResultVO {
 
 `Request`、`Response`、`Command`、`Query`、`VO` 这类纯数据载体对象，默认遵循以下规则：
 
-- 优先使用 `@Getter`、`@Setter`、`@Builder`、`@NoArgsConstructor`、`@AllArgsConstructor` 等注解减少样板代码
+- 同时需要 getter / setter 的可变数据载体，默认优先使用 `@Data`
+- 只需要只读访问的对象，优先使用 `@Getter`
+- 需要链式构建、参数较多、存在可选字段时，再按需增加 `@Builder`
+- 枚举默认使用 `@Getter` 即可，不要给枚举加 `@Setter`
 - 不要为纯字段读写手写 getter / setter
 - 只有在框架兼容要求、序列化约束、访问控制定制、字段派生逻辑等场景下，才允许手写访问方法
 - 即使用了注解，类注释和关键字段中文注释仍然不能省略
@@ -283,8 +286,7 @@ public class OrderCreateResultVO {
 /**
  * 后台确认订单请求参数。
  */
-@Getter
-@Setter
+@Data
 public class ConfirmOrderRequest {
 
     /**
@@ -327,6 +329,51 @@ public class ConfirmOrderRequest {
     public void setRemark(String remark) {
         this.remark = remark;
     }
+}
+```
+
+补充示例：
+
+```java
+/**
+ * 确认订单命令。
+ */
+@Getter
+@Builder
+public class ConfirmOrderCommand {
+
+    /**
+     * 订单号。
+     */
+    private final String orderNo;
+
+    /**
+     * 确认备注。
+     */
+    private final String remark;
+}
+```
+
+```java
+/**
+ * 订单状态枚举。
+ */
+@Getter
+@RequiredArgsConstructor
+public enum OrderStatusEnum {
+
+    /**
+     * 待处理。
+     */
+    PENDING(1, "待处理"),
+
+    /**
+     * 已确认。
+     */
+    CONFIRMED(2, "已确认");
+
+    private final Integer code;
+    private final String description;
 }
 ```
 
