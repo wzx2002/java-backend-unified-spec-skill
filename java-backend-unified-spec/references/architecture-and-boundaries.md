@@ -183,6 +183,7 @@ persistence
 - Command
 - Query
 - VO
+- DTO
 - Convert
 - Service
 - ServiceImpl
@@ -196,6 +197,7 @@ business
    ├─ command
    ├─ query
    ├─ vo
+   ├─ dto
    ├─ convert
    ├─ service
    ├─ service/impl
@@ -204,6 +206,15 @@ business
       ├─ validator
       └─ policy
 ```
+
+补充约束：
+
+- `convert` 属于默认需要的业务层目录，用于承接跨对象装配
+- 只有在对象装配是一次性、局部、非常短的小段 `Builder` 时，才允许不单独落 `convert`
+- 默认命名统一使用 `XxxService`、`XxxServiceImpl`
+- 老项目如果当前已经稳定使用 `ApplicationService`、`ApplicationServiceImpl`，可以在本模块内保持一致，但不再作为新规范的默认推荐命名
+- `convert` 放在 `business`，不要把它挪到 `web`
+- `convert` 主要负责 `DO / DTO / VO / Command / Query` 等业务层对象转换，不替代入口层 `Assembler`
 
 ### 6.4 web / interfaces 层职责
 
@@ -313,6 +324,14 @@ integration
 - 直接调 Mapper
 - 直接散写错误码、权限码、锁 key、操作名称等业务字面量
 - 直接写厂商 SDK 初始化、签名和底层重试逻辑
+- 把应由 Convert 承接的跨对象装配大段散写在 Controller 或 ServiceImpl 中
+
+`Assembler` 与 `Convert` 的职责区分：
+
+- `Assembler` 位于 `web / interfaces`，负责入口层对象装配，例如 `ConfirmOrderRequest -> ConfirmOrderCommand`
+- `Convert` 位于 `business`，负责业务层对象转换，例如 `ExportJobDO -> ExportJobDetailVO`、`TimelineVersionDO -> ExportTaskPayloadDTO`
+- `Assembler` 不承接大段业务层 `DO / DTO / VO` 转换
+- `Convert` 不直接承担 HTTP 入参接收语义
 
 `domain` 负责：
 

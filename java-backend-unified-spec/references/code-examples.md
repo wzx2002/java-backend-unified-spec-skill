@@ -78,6 +78,8 @@ business
    │  └─ OrderPageQuery.java
    ├─ vo
    │  └─ OrderVO.java
+   ├─ dto
+   │  └─ OrderExportTaskPayloadDTO.java
    ├─ convert
    │  └─ OrderConvert.java
    ├─ service
@@ -138,13 +140,14 @@ integration
 以“后台确认完单”为例，标准链路如下：
 
 1. `web` 接收请求并完成参数校验。
-2. `web` 通过 Assembler 转成 `business` Command。
+2. `web` 通过 `Assembler` 转成 `business` Command。
 3. `business` 统一处理权限、防抖、日志、事务。
 4. `business` 在业务主键维度执行统一并发控制策略，例如分布式锁。
 5. `business` 调用 `persistence` 查询数据。
 6. `domain` 校验状态并处理状态流转。
-7. `persistence` 使用项目既有数据访问组件落库。
-8. AOP 或事件统一记录日志、审计和风控信息。
+7. `business` 通过 `Convert` 完成 `DO / DTO / VO` 的对象装配；只有特别短的一次性装配才允许直接 `Builder`。
+8. `persistence` 使用项目既有数据访问组件落库。
+9. AOP 或事件统一记录日志、审计和风控信息。
 
 ## 17. 代码示例
 
@@ -312,6 +315,32 @@ public final class OrderLockKeys {
 
 ```java
 /**
+ * 时间轴版本常量。
+ */
+public final class TimelineVersionConstants {
+
+    /**
+     * 时间轴版本前缀。
+     */
+    public static final String VERSION_PREFIX = "v";
+
+    private TimelineVersionConstants() {
+    }
+
+    /**
+     * 构造时间轴版本号。
+     *
+     * @param versionCount 当前版本数量
+     * @return 下一个时间轴版本号
+     */
+    public static String nextVersion(Integer versionCount) {
+        return VERSION_PREFIX + (versionCount + 1);
+    }
+}
+```
+
+```java
+/**
  * 订单接口路径常量。
  */
 public final class OrderApiPaths {
@@ -369,7 +398,7 @@ public enum OrderStatusEnum {
 }
 ```
 
-### 17.3 Controller / Request / Assembler 示例
+### 17.3 Controller / Request / Convert 示例
 
 ```java
 /**
@@ -424,9 +453,39 @@ public class ConfirmOrderRequest {
 
 ```java
 /**
+ * 查询时间轴命令。
+ */
+@Data
+public class GetTimelineQuery {
+
+    /**
+     * 项目主键。
+     */
+    @NotNull(message = "项目不能为空")
+    private Long projectId;
+}
+```
+
+```java
+/**
+ * 保存时间轴命令。
+ */
+@Data
+public class SaveTimelineCommand {
+
+    /**
+     * 时间轴 DSL JSON。
+     */
+    @NotBlank(message = "时间轴不能为空")
+    private String timelineDslJson;
+}
+```
+
+```java
+/**
  * 后台订单 Web 装配器。
  * <p>
- * 负责将入口层请求对象转换为业务层命令对象，不承载业务规则。
+ * 负责入口层 `Request` 与业务层 `Command` 之间的装配。
  */
 @Component
 public class AdminOrderWebAssembler {
@@ -441,6 +500,39 @@ public class AdminOrderWebAssembler {
         return ConfirmOrderCommand.builder()
             .orderNo(request.getOrderNo())
             .remark(request.getRemark())
+            .build();
+    }
+}
+```
+
+```java
+/**
+ * 订单对象转换器。
+ * <p>
+ * 负责业务层 `DO / DTO / VO` 之间的转换。
+ */
+@Component
+public class OrderConvert {
+
+    /**
+     * 将时间轴版本实体转换为导出任务快照。
+     *
+     * @param exportJobId 导出任务主键
+     * @param timelineVersionDO 时间轴版本实体
+     * @param outputObjectKey 导出结果对象存储 Key
+     * @return 导出任务快照
+     */
+    public ExportTaskPayloadDTO toExportTaskPayloadDTO(
+        Long exportJobId,
+        TimelineVersionDO timelineVersionDO,
+        String outputObjectKey
+    ) {
+        return ExportTaskPayloadDTO.builder()
+            .exportJobId(exportJobId)
+            .projectId(timelineVersionDO.getProjectId())
+            .timelineVersionId(timelineVersionDO.getId())
+            .timelineDslJson(timelineVersionDO.getTimelineDslJson())
+            .outputObjectKey(outputObjectKey)
             .build();
     }
 }

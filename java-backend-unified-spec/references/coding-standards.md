@@ -30,14 +30,21 @@
 - 仓储实现：`XxxRepoImpl`
 - 命令对象：`XxxCommand`
 - 查询对象：`XxxQuery`
+- 传输对象：`XxxDTO`
 - 视图对象：`XxxVO`
 - 转换器：`XxxConvert`
 - 服务接口：`XxxService`
 - 服务实现：`XxxServiceImpl`
-- Web 装配器：`XxxWebAssembler`
+- Web 装配器：`XxxWebAssembler` 或 `XxxAssembler`
 - 领域管理器：`XxxManager`
 - 规则校验器：`XxxValidator`
 - 业务策略：`XxxPolicy`
+
+补充说明：
+
+- `XxxApplicationService`、`XxxApplicationServiceImpl` 仅作为老项目兼容命名保留，不作为新规范默认推荐
+- 同一模块内不要混用 `XxxService` 和 `XxxApplicationService` 两套命名
+- `XxxWebAssembler` 与 `XxxConvert` 是两类不同角色，不要混成一个类
 
 ### 7.3 接口路径
 
@@ -45,6 +52,7 @@
 - 前台接口统一 `/api/**`
 - 路径统一使用短横线风格，如 `/confirm-order`
 - 禁止接口路径使用驼峰命名
+- 前台业务模块的基础路径常量应明确体现 `/api` 语义，例如 `/api/order`、`/api/project`
 
 ### 7.4 常量类命名
 
@@ -77,6 +85,7 @@
 - 锁 Key 前缀常量统一以 `_PREFIX` 结尾
 - 路径常量优先用语义命名，如 `ADMIN_BASE`、`CONFIRM_ORDER`
 - 正则或路径匹配常量优先以 `_PATTERN` 结尾
+- 业务前缀、版本前缀、对象存储目录前缀等短字符串只要承载业务语义，也属于魔法字符串，例如 `"v"`、`"video-cut/export/"`
 
 ### 7.6 常量值格式
 
@@ -96,6 +105,7 @@
 - 不允许实例化
 - 不允许把多个类别混在同一个类里
 - 可以提供少量 Key 拼装方法，但方法名必须是完整业务语义
+- 对版本号、对象存储路径、任务快照 Key 等带业务含义的字符串拼装，优先提供语义化常量和辅助方法，不要在业务代码里直接写字面量前缀
 
 ### 7.8 枚举命名
 
@@ -121,7 +131,7 @@
 - 业务 Service / ServiceImpl
 - Domain Manager / Validator / Policy
 - Repo / RepoImpl
-- Controller / Assembler
+- Controller / Assembler / Convert
 - 自定义注解与 AOP 切面
 - 第三方 Client / Properties / Adapter
 - 自定义异常、统一响应、全局异常处理类
@@ -142,6 +152,8 @@
 
 - `public` / `protected` 方法
 - Repo 查询方法和状态更新方法
+- Assembler 的公开装配方法
+- Convert 的公开转换方法
 - Domain 核心规则方法
 - 第三方调用适配方法
 - 涉及事务、分布式锁、幂等、防抖、权限、审计、风控的方法
@@ -274,11 +286,12 @@ public class OrderCreateResultVO {
 
 - 同时需要 getter / setter 的可变数据载体，默认优先使用 `@Data`
 - 只需要只读访问的对象，优先使用 `@Getter`
-- 需要链式构建、参数较多、存在可选字段时，再按需增加 `@Builder`
+- `Command`、`DTO`、`VO`、内部快照载荷等对象，默认优先考虑 `@Builder`
 - 枚举默认使用 `@Getter` 即可，不要给枚举加 `@Setter`
 - 不要为纯字段读写手写 getter / setter
 - 只有在框架兼容要求、序列化约束、访问控制定制、字段派生逻辑等场景下，才允许手写访问方法
 - 即使用了注解，类注释和关键字段中文注释仍然不能省略
+- 不要为了回避 `convert` 层，直接在 Service / Controller 里写大段 setter 链式装配
 
 推荐写法示例：
 
@@ -351,6 +364,26 @@ public class ConfirmOrderCommand {
      * 确认备注。
      */
     private final String remark;
+}
+```
+
+```java
+/**
+ * 导出任务快照。
+ */
+@Getter
+@Builder
+public class ExportTaskPayloadDTO {
+
+    /**
+     * 导出任务主键。
+     */
+    private final Long exportJobId;
+
+    /**
+     * 项目主键。
+     */
+    private final Long projectId;
 }
 ```
 
@@ -438,6 +471,7 @@ public enum OrderStatusEnum {
 - 前后台统一使用同一套响应结构
 - 统一响应优先使用带泛型的响应体，例如 `CommonResponse<T>`，不要到处使用原始类型
 - 参数前置校验统一优先使用 Apache Commons Lang3 的 `Validate.notNull(...)`、`Validate.isTrue(...)` 等写法，不要在业务代码中散写重复的 `if (...) { throw ... }`
+- 对存在性、状态合法性、活动任务冲突、重复提交等守卫式失败分支，也默认优先使用 `Validate`，而不是裸写 `if + throw`
 
 推荐异常类：
 
@@ -473,20 +507,72 @@ public enum OrderStatusEnum {
 - 一个方法只做一个抽象层级的事情
 - 当一个方法同时混杂“参数校验 + 业务编排 + 状态流转 + 持久化细节 + 第三方调用”时，必须拆分
 
+#### 12.1.1 对象装配与 Convert 约束
+
+- `Assembler` 和 `Convert` 是两层不同能力，不能混用
+- `Assembler` 默认位于 `web / interfaces`，负责 `Request -> Command`、`VO -> Response` 等入口层装配
+- `convert` 是默认业务层配套能力，不是可有可无的装饰层
+- `DO -> VO`、`DO -> DTO`、内部 `DTO` 快照组装等跨对象转换，默认优先进入 `XxxConvert`
+- `Convert` 内部可以使用 `Builder` 完成对象构造
+- 只有在转换逻辑一次性、局部、极短，且抽 `convert` 反而降低可读性时，才允许直接在当前方法里写一个很短的 `Builder`
+- 不要把几十行对象装配散写在 Controller、Assembler、ServiceImpl 里
+
+#### 12.1.2 ServiceImpl 编排格式
+
+`ServiceImpl`、`ApplicationServiceImpl` 这类用例编排方法，默认遵循以下结构：
+
+- `// 校验`：收口参数前置校验、存在性校验、状态合法性校验、权限前置判断
+- `// 创建`、`// 更新`、`// 查询`：执行当前用例的核心业务动作
+- `// 响应`：返回主键、结果对象或转换后的响应数据
+
+推荐写法：
+
+```java
+@Override
+@Transactional(rollbackFor = Exception.class)
+public Long saveTimeline(SaveTimelineCommand saveTimelineCommand) {
+    // 校验
+    validateSaveTimelineCommand(saveTimelineCommand);
+
+    // 创建
+    TimelineVersionDO timelineVersionDO = buildTimelineVersionDO(saveTimelineCommand);
+    timelineVersionRepo.insert(timelineVersionDO);
+
+    // 响应
+    return timelineVersionDO.getId();
+}
+```
+
+约束说明：
+
+- 这类阶段注释应体现“编排阶段”，不要写成空泛注释
+- 能抽到 `validateXxx()`、`buildXxx()`、`saveXxx()`、`queryXxx()` 的逻辑，优先抽出复用
+- `ServiceImpl` 负责串联，不负责塞满所有实现细节
+
 ### 12.2 方法体控制
 
 - 优先使用卫语句和早返回，降低嵌套深度
 - 普通业务方法默认不应超过 3 层嵌套
 - 方法过长、分支过多、可读性下降时，优先抽私有方法或专用组件
 - 复杂业务优先抽取 `XxxManager`、`XxxValidator`、`XxxPolicy`
+- 多个用例重复出现的校验、构造、状态流转、快照生成逻辑，优先抽成可复用方法或领域组件
 
-### 12.3 空值与返回值
+### 12.3 代码复用、DDD 与抽象
+
+- 相同业务语义的校验逻辑，不要在多个 `ServiceImpl` 中重复散写，优先收口到 `Validator`、`Manager` 或复用私有方法
+- 相同业务语义的状态流转，不要在多个方法里各写一套，优先收口到领域模型、`Manager` 或 `Policy`
+- 相同业务语义的对象转换，不要在多个地方重复 new / set，优先收口到 `Assembler` 或 `Convert`
+- 抽象必须服务于稳定业务语义，不要为了“看起来分层很多”而制造空壳抽象
+- DDD 的重点是边界清晰、职责收口、规则聚合，不是机械堆叠术语或目录
+- 对已存在且稳定的 skill 规范代码，优先延续现有抽象，不要轻易推翻已有分层和命名口径
+
+### 12.4 空值与返回值
 
 - 列表、分页、批量结果默认不返回 `null`
 - 查无数据时优先返回空集合、空页对象或显式业务异常
 - 不要把 `null` 当成跨层协议的常规语义
 
-### 12.4 校验分层
+### 12.5 校验分层
 
 - `web / interfaces` 负责格式校验、必填校验、长度校验、枚举值校验
 - `domain` 或 `validator` 负责业务不变量、状态合法性、金额口径校验
@@ -494,30 +580,89 @@ public enum OrderStatusEnum {
 - 对空值校验统一优先使用 `Validate.notNull(...)`
 - 对布尔条件校验统一优先使用 `Validate.isTrue(...)`
 - 不要在多个业务方法里重复散写 `if (...) { throw new BizException(...) }` 作为基础前置校验模板
+- `if` 可以用于正常业务分支，但对简单守卫式失败不要写成 `if (...) { throw ... }`
 - Repo 不承载业务规则校验
 
-### 12.5 事务与一致性
+#### 12.5.1 注解校验消息规范
+
+- `@NotNull`、`@NotBlank`、`@Size` 等注解中的 `message` 必须使用面向业务的中文提示
+- 不要直接把字段名、英文属性名、技术字段名塞进提示文案
+- 提示语优先回答“用户或调用方缺少了什么业务信息”，而不是“哪个字段名为空”
+
+推荐示例：
+
+```java
+/**
+ * 查询时间轴命令。
+ */
+@Data
+public class GetTimelineQuery {
+
+    /**
+     * 项目主键。
+     */
+    @NotNull(message = "项目不能为空")
+    private Long projectId;
+}
+```
+
+```java
+/**
+ * 保存时间轴命令。
+ */
+@Data
+public class SaveTimelineCommand {
+
+    /**
+     * 时间轴 DSL JSON。
+     */
+    @NotBlank(message = "时间轴不能为空")
+    private String timelineDslJson;
+}
+```
+
+不推荐示例：
+
+```java
+@Data
+public class GetTimelineQuery {
+
+    @NotNull(message = "projectId不能为空")
+    private Long projectId;
+}
+```
+
+```java
+@Data
+public class SaveTimelineCommand {
+
+    @NotBlank(message = "timelineDslJson不能为空")
+    private String timelineDslJson;
+}
+```
+
+### 12.6 事务与一致性
 
 - 事务默认放在 `business` 编排层
 - 不要把事务散落在 Controller、Repo、Client
 - 涉及资金链路、状态流转、流水写入时，要明确事务边界和补偿策略
 - 涉及回调幂等时，要显式说明幂等键来源
 
-### 12.6 异常处理质量
+### 12.7 异常处理质量
 
 - 不允许吞异常
 - 只有在“转换异常语义、补充上下文、重试、降级、日志增强”时才允许 `catch`
 - 业务异常与系统异常必须区分清楚
 - 不要把所有异常都映射成同一个模糊错误码
 
-### 12.7 查询与性能
+### 12.8 查询与性能
 
 - 批量处理优先批量查库、批量写库，避免循环内查库形成 N+1
 - 多表联查、统计、导出、对账统一进入 XML
 - 分页查询必须保证排序口径明确
 - 对高频接口明确缓存、锁、幂等或防抖策略
 
-### 12.8 可读性与可评审性
+### 12.9 可读性与可评审性
 
 - 常量、枚举、异常、响应结构要语义清晰
 - 不允许散写业务字面量
@@ -525,7 +670,7 @@ public enum OrderStatusEnum {
 - 重要类、方法、关键分支必须带中文注释
 - 代码提交前至少完成一次“命名 / 注释 / 边界 / 异常 / 空值 / 重复逻辑”自检
 
-### 12.9 金额与时间
+### 12.10 金额与时间
 
 - 金额统一使用 `BigDecimal`
 - 禁止使用 `double` / `float` 做金额计算
