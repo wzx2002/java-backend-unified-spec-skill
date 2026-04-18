@@ -38,6 +38,7 @@ infrastructure
 │  ├─ code
 │  │  └─ CommonErrorCodes.java
 │  ├─ assert
+│  │  ├─ Validate.java
 │  │  └─ BizAssert.java
 │  ├─ PermissionException.java
 │  ├─ RiskControlException.java
@@ -639,8 +640,8 @@ public class OrderServiceImpl implements OrderService {
     @NoRepeatSubmit(keyPrefix = OrderNoRepeatKeys.ADMIN_ORDER_CONFIRM, expireSeconds = 5)
     @Transactional(rollbackFor = Exception.class)
     public void confirmOrder(ConfirmOrderCommand command) {
-        Validate.isTrue(ObjectUtil.isNotNull(command), "确认订单命令不能为空");
-        Validate.isTrue(StrUtil.isNotBlank(command.getOrderNo()), "订单号不能为空");
+        Validate.notNull(command, "确认订单命令不能为空");
+        Validate.notBlank(command.getOrderNo(), "订单号不能为空");
         distributedLockExecutor.executeWithLock(
             OrderLockKeys.confirmOrder(command.getOrderNo()),
             3000L,
@@ -824,7 +825,58 @@ public class XxxAiClient implements AiClient {
 }
 ```
 
-### 17.8 BizAssert 示例
+### 17.8 Validate 示例
+
+```java
+/**
+ * 统一前置校验工具。
+ * <p>
+ * 负责收口高频基础守卫校验，避免在业务代码里反复拼装底层断言模板。
+ */
+public final class Validate {
+
+    private Validate() {
+    }
+
+    /**
+     * 断言对象非空。
+     *
+     * @param value   待校验对象
+     * @param message 失败提示
+     */
+    public static void notNull(Object value, String message) {
+        if (ObjectUtil.isNull(value)) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    /**
+     * 断言字符串非空白。
+     *
+     * @param value   待校验字符串
+     * @param message 失败提示
+     */
+    public static void notBlank(CharSequence value, String message) {
+        if (StrUtil.isBlank(value)) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    /**
+     * 断言条件成立。
+     *
+     * @param expression 条件表达式
+     * @param message    失败提示
+     */
+    public static void isTrue(boolean expression, String message) {
+        if (!expression) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+}
+```
+
+### 17.9 BizAssert 示例
 
 ```java
 /**
@@ -865,7 +917,7 @@ public final class BizAssert {
 }
 ```
 
-### 17.9 全局异常处理示例
+### 17.10 全局异常处理示例
 
 ```java
 /**

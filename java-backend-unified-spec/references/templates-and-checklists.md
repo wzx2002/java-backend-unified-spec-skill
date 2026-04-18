@@ -96,17 +96,18 @@
 1. 命名、目录、分层边界是否符合规范。
 2. 关键类、方法、字段中文注释是否补齐。
 3. 状态判断是否优先收口到枚举静态方法。
-4. 简单前置校验和简单守卫式失败分支是否统一使用 `Validate.isTrue(...)`、`Validate.isTrue(ObjectUtil.isNotNull(...), "...不能为空")` 或等价统一能力，而不是散写 `if + throw`。
+4. 简单前置校验和简单守卫式失败分支是否统一使用项目级 `Validate.notNull(...)`、`Validate.notBlank(...)`、`Validate.isTrue(...)` 或等价统一能力，而不是散写 `if + throw`，也不是反复手写 `Validate.isTrue(ObjectUtil.isNotNull(...), "...不能为空")` 这类可封装模板。
 5. 是否引入新的事务、幂等、锁、审计、权限风险。
 6. 是否产生魔法字符串、魔法数字、`Constants` 大杂烩，包括版本前缀、对象存储路径前缀等短业务字面量。
 7. 入口层装配是否放在 `Assembler`，业务层对象转换是否放在 `Convert` 中；只有特殊且很短的一次性装配才直接使用 `Builder`。
-8. 注解校验消息是否使用业务中文语义，而不是 `projectId不能为空`、`timelineDslJson不能为空` 这类字段名提示。
-9. 空值、空串、空集合、对象相等、布尔判断以及常见工具能力是否默认优先使用 Hutool，例如 `ObjectUtil.isNull(...)` / `equal(...)`、`StrUtil`、`CollUtil`、`BooleanUtil`、`MapUtil`、`BeanUtil`、`JSONUtil`、`HttpUtil` / `HttpRequest`，而不是散写 `!= null && !isBlank()`、`Objects.equals(...)`、`Boolean.TRUE.equals(...)` 或自己临时封装零散工具函数；如使用 URL / HTTP helper，是否仍保持在统一 `client` 边界并满足超时、白名单与 SSRF 防护要求。
-10. `Validate` 与 `BizException` / `BizAssert` 的使用边界是否清晰，简单守卫失败没有滥用 `BizException`，需要错误码的业务失败是否统一收口到 `BizException` / `BizAssert`，而不是误降级成裸 `Validate`。
-11. 是否错误地用裸 `Validate` 承担需要稳定业务错误码的失败语义。
-12. Repo 是否只返回数据库操作结果或 typed result，而没有在仓储层直接抛业务异常；写操作结果是否由 `ServiceImpl`、`domain` 或统一业务断言能力翻译。
-13. 是否补齐对应测试、自测结果和模块级回归范围。
-14. 如涉及架构决策、兼容性变更、核心模块改动，是否更新 README / ADR / 回归清单。
+8. 明显会复用的低层模板是否已经按职责自动抽离，而不是继续复制，例如前置校验、状态判断、对象组装、锁键拼装、查询条件启停、第三方请求模板。
+9. 注解校验消息是否使用业务中文语义，而不是 `projectId不能为空`、`timelineDslJson不能为空` 这类字段名提示。
+10. 空值、空串、空集合、对象相等、布尔判断以及常见工具能力是否默认优先使用 Hutool，例如 `ObjectUtil.isNull(...)` / `equal(...)`、`StrUtil`、`CollUtil`、`BooleanUtil`、`MapUtil`、`BeanUtil`、`JSONUtil`、`HttpUtil` / `HttpRequest`，而不是散写 `!= null && !isBlank()`、`Objects.equals(...)`、`Boolean.TRUE.equals(...)` 或自己临时封装零散工具函数；如使用 URL / HTTP helper，是否仍保持在统一 `client` 边界并满足超时、白名单与 SSRF 防护要求。
+11. `Validate` 与 `BizException` / `BizAssert` 的使用边界是否清晰，简单守卫失败没有滥用 `BizException`，需要错误码的业务失败是否统一收口到 `BizException` / `BizAssert`，而不是误降级成裸 `Validate`。
+12. 是否错误地用裸 `Validate` 承担需要稳定业务错误码的失败语义。
+13. Repo 是否只返回数据库操作结果或 typed result，而没有在仓储层直接抛业务异常；写操作结果是否由 `ServiceImpl`、`domain` 或统一业务断言能力翻译。
+14. 是否补齐对应测试、自测结果和模块级回归范围。
+15. 如涉及架构决策、兼容性变更、核心模块改动，是否更新 README / ADR / 回归清单。
 
 ## 34. 代码评审清单
 
@@ -118,16 +119,17 @@
 4. 注释是否真正解释了业务语义，而不是只翻译字段名。
 5. 是否存在重复散写状态判断、重复前置校验、重复异常模板，尤其是 `if + throw` 守卫式失败分支。
 6. 是否混淆了 `Assembler` 和 `Convert` 职责，或者把大段对象装配直接散写在 Controller / ServiceImpl 中。
-7. 纯数据载体对象是否错误地手写了大量 getter / setter，而没有优先使用合适的 Lombok 注解收掉样板代码，例如 `@Data`、`@Getter`、`@Builder`。
-8. 校验提示语是否使用业务中文，而不是把属性名直接暴露给调用方。
-9. 空值、空串、空集合判断是否统一使用工具函数，并且包来源一致，而不是在 Query、Repo、ServiceImpl 中手写碎片化判空链。
-10. `Validate` 与 `BizException` / `BizAssert` 是否各司其职，既没有简单校验也上业务异常，也没有需要错误码的场景只留一条普通提示文案。
-11. 是否错误地用裸 `Validate` 承担需要稳定业务错误码的失败语义。
-12. Repo 是否越层承担了业务异常翻译，尤其是把“更新失败”“查无数据”“状态非法”直接在仓储层抛出；返回值口径是否按操作类型保持一致。
-13. 复杂条件写操作是否被不加区分地压成 `boolean`，导致调用方无法表达并发冲突、状态不匹配或不存在等差异。
-14. 是否存在空值协议不清、异常吞掉、N+1、循环查库等问题。
-15. 是否遗漏权限、数据范围、事务、幂等、并发、审计、敏感日志控制。
-16. 是否引入兼容性风险、安全风险或交付风险。
+7. 明显会重复的低层模式是否仍然散写在多个位置，而没有抽到合适拥有者，例如 `Validate`、`BizAssert`、枚举静态方法、`Convert`、`XxxLockKeys`、`client`。
+8. 纯数据载体对象是否错误地手写了大量 getter / setter，而没有优先使用合适的 Lombok 注解收掉样板代码，例如 `@Data`、`@Getter`、`@Builder`。
+9. 校验提示语是否使用业务中文，而不是把属性名直接暴露给调用方。
+10. 空值、空串、空集合判断是否统一使用工具函数，并且包来源一致，而不是在 Query、Repo、ServiceImpl 中手写碎片化判空链。
+11. `Validate` 与 `BizException` / `BizAssert` 是否各司其职，既没有简单校验也上业务异常，也没有需要错误码的场景只留一条普通提示文案。
+12. 是否错误地用裸 `Validate` 承担需要稳定业务错误码的失败语义。
+13. Repo 是否越层承担了业务异常翻译，尤其是把“更新失败”“查无数据”“状态非法”直接在仓储层抛出；返回值口径是否按操作类型保持一致。
+14. 复杂条件写操作是否被不加区分地压成 `boolean`，导致调用方无法表达并发冲突、状态不匹配或不存在等差异。
+15. 是否存在空值协议不清、异常吞掉、N+1、循环查库等问题。
+16. 是否遗漏权限、数据范围、事务、幂等、并发、审计、敏感日志控制。
+17. 是否引入兼容性风险、安全风险或交付风险。
 
 ## 35. 交付与上线总清单
 

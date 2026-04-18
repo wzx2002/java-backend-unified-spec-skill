@@ -473,7 +473,7 @@ public enum OrderStatusEnum {
 - 异常分类必须明确
 - 前后台统一使用同一套响应结构
 - 统一响应优先使用带泛型的响应体，例如 `CommonResponse<T>`，不要到处使用原始类型
-- 简单参数前置校验统一优先使用 Apache Commons Lang3 的 `Validate.isTrue(...)` 等写法，不要在业务代码中散写重复的 `if (...) { throw ... }`
+- 简单参数前置校验统一优先使用项目级 `Validate` helper，例如 `Validate.notNull(...)`、`Validate.notBlank(...)`、`Validate.isTrue(...)`，不要在业务代码中散写重复的 `if (...) { throw ... }`
 - 对字段存在性、开关状态、活动任务冲突、重复提交等简单守卫式失败分支，也默认优先使用 `Validate`，而不是裸写 `if + throw`
 - 对“查无数据”“状态非法”“更新失败”等需要稳定业务错误码的失败语义，应使用 `BizException` 或项目统一业务异常断言能力，不要直接使用裸 `Validate`
 
@@ -504,12 +504,13 @@ public enum OrderStatusEnum {
 - 不要把所有 `NullPointerException` 一律映射为参数错误，避免把真实程序错误误判成前置校验失败
 - 示例和默认规范中，不建议通过 `@ExceptionHandler(NullPointerException.class)` 全局把 `NullPointerException` 直接映射为 `PARAM_ERROR`
 - 如果项目需要稳定返回参数错误或业务错误码，优先改用项目级断言 helper、`BizException`、或不会落入全局 `NullPointerException` 分支的统一异常写法
-- 默认不要把 `Validate.notNull(...)` 作为简单空值守卫写法，除非项目已经明确约束其异常收口方式并愿意承担对应契约
+- 默认不要直接依赖底层库原生 `Validate.notNull(...)` 的异常行为；如项目已经统一封装为项目级 `Validate.notNull(...)`，则应以该统一 helper 的稳定异常契约为准
 
 #### 11.1 `Validate` 与 `BizException` 使用边界
 
-- 简单前置校验、简单守卫式失败、基础存在性校验，默认优先使用 `Validate.isTrue(...)`
-- 对简单空值校验，默认使用 `Validate.isTrue(ObjectUtil.isNotNull(...), "...不能为空")`，不要把 `Validate.notNull(...)` 当成默认推荐写法
+- 这里的 `Validate` 默认指项目统一封装后的前置校验 helper，不要求业务代码直接拼 Apache Commons Lang3 与 Hutool 底层调用
+- 简单前置校验、简单守卫式失败、基础存在性校验，默认优先使用项目级 `Validate.notNull(...)`、`Validate.notBlank(...)`、`Validate.isTrue(...)`
+- 对简单空值校验，默认直接使用 `Validate.notNull(value, "...不能为空")`，不要在业务代码里反复手写 `Validate.isTrue(ObjectUtil.isNotNull(value), "...不能为空")`
 - 需要明确业务错误码、区分业务异常类别、保留稳定异常契约时，使用 `BizException` 或项目内的专用业务异常
 - 不要为了简单空值判断专门 new 一个 `BizException`
 - 不要把原本需要错误码的业务失败全部降级成只有文案的 `Validate`
@@ -517,15 +518,22 @@ public enum OrderStatusEnum {
 推荐示例：
 
 ```java
-// 简单守卫失败，直接使用 Validate。
-Validate.isTrue(ObjectUtil.isNotNull(command), "确认订单命令不能为空");
-Validate.isTrue(StrUtil.isNotBlank(command.getOrderNo()), "订单号不能为空");
+// 简单守卫失败，直接使用项目级 Validate helper。
+Validate.notNull(command, "确认订单命令不能为空");
+Validate.notBlank(command.getOrderNo(), "订单号不能为空");
 
 // 需要明确错误码时，使用 BizException 或统一业务断言能力。
 BizAssert.notNull(orderDO, OrderErrorCodes.ORDER_NOT_FOUND, OrderErrorMessages.ORDER_NOT_FOUND);
 ```
 
-#### 11.2 `BizAssert` 统一业务断言能力
+#### 11.2 项目级 `Validate` 统一前置校验能力
+
+- 对高频复用的基础前置校验，默认应先抽成项目级统一 helper，再在业务代码中复用
+- 默认提供 `notNull(...)`、`notBlank(...)`、`isTrue(...)` 等高频方法，不要把底层工具组合模板散落到每个 ServiceImpl
+- 如果项目底层依赖 Apache Commons Lang3、Hutool 或其他断言工具，应收口在 helper 内部，不要要求业务代码反复拼装
+- 项目级 `Validate` 应暴露稳定异常契约，例如统一抛 `IllegalArgumentException` 或项目约定的参数异常，而不是让调用方依赖底层库的偶发异常行为
+
+#### 11.3 `BizAssert` 统一业务断言能力
 
 - 需要稳定业务错误码、稳定异常契约、统一业务失败翻译时，推荐提供项目级业务断言工具
 - 默认命名使用 `BizAssert`；只有模块边界明确且断言能力确实隔离时，才使用 `XxxBizAssert`
@@ -541,7 +549,15 @@ BizAssert.notNull(orderDO, OrderErrorCodes.ORDER_NOT_FOUND, OrderErrorMessages.O
 - 一个方法只做一个抽象层级的事情
 - 当一个方法同时混杂“参数校验 + 业务编排 + 状态流转 + 持久化细节 + 第三方调用”时，必须拆分
 
-#### 12.1.1 对象装配与 Convert 约束
+#### 12.1.1 重复模式自动抽离约束
+
+- 只要某个低层模板已经明确会复用，或非常明显后续还会继续出现，就应尽早抽离到合适抽象中，不要等复制扩散后再统一收口
+- 常见需要自动抽离的模式包括：前置校验模板、业务断言模板、枚举状态判断、对象组装、锁 Key 拼装、查询条件启停、第三方请求模板、结果解析模板
+- 抽离位置要贴近真实职责：参数守卫优先进项目级 `Validate`，业务错误码断言优先进 `BizAssert`，状态判断优先进枚举静态方法，对象转换优先进 `Convert`，三方调用模板优先进 `client`
+- 自动抽离不等于堆全局大杂烩；不要把跨层、跨语义的内容全部塞进 `CommonUtil`、`Helper`、`Utils`
+- 当模式只在一个小模块稳定复用时，优先抽到模块内最近的拥有者，不要过早升成全局基础设施
+
+#### 12.1.2 对象装配与 Convert 约束
 
 - `Assembler` 和 `Convert` 是两层不同能力，不能混用
 - `Assembler` 默认位于 `web / interfaces`，负责 `Request -> Command`、`VO -> Response` 等入口层装配
@@ -651,8 +667,9 @@ public Page<EmployeeDO> page(String employeeName, String mobile, Integer status,
 
 - `web / interfaces` 负责格式校验、必填校验、长度校验、枚举值校验
 - `domain` 或 `validator` 负责业务不变量、状态合法性、金额口径校验
-- `business`、`domain`、`validator` 中的简单前置条件校验，优先统一使用 `org.apache.commons.lang3.Validate`
-- 对空值校验统一优先使用 `Validate.isTrue(ObjectUtil.isNotNull(...), "...不能为空")`
+- `business`、`domain`、`validator` 中的简单前置条件校验，优先统一使用项目级 `Validate` helper
+- 对空值校验统一优先使用 `Validate.notNull(...)`
+- 对字符串非空校验统一优先使用 `Validate.notBlank(...)`
 - 对布尔条件校验统一优先使用 `Validate.isTrue(...)`
 - 不要在多个业务方法里重复散写 `if (...) { throw new BizException(...) }` 作为基础前置校验模板
 - `if` 可以用于正常业务分支，但对简单守卫式失败不要写成 `if (...) { throw ... }`
@@ -686,7 +703,7 @@ public boolean update(EmployeeDO employeeDO) {
 @Transactional(rollbackFor = Exception.class)
 public void updateEmployee(UpdateEmployeeCommand command) {
     // 校验
-    Validate.isTrue(ObjectUtil.isNotNull(command), "更新员工命令不能为空");
+    Validate.notNull(command, "更新员工命令不能为空");
     EmployeeDO employeeDO = employeeRepo.findById(command.getEmployeeId());
     BizAssert.notNull(employeeDO, AccountErrorCodes.EMPLOYEE_NOT_FOUND, AccountErrorMessages.EMPLOYEE_NOT_FOUND);
 
@@ -707,8 +724,9 @@ if (employeeMapper.updateById(employeeDO) != 1) {
 
 补充说明：
 
-- 简单参数存在性、基础布尔守卫、格式前置条件仍然优先使用 `Validate`
-- 默认不把 `Validate.notNull(...)` 作为简单空值守卫写法，避免默认契约落入 `NullPointerException`
+- 简单参数存在性、基础布尔守卫、格式前置条件仍然优先使用项目级 `Validate`
+- 不要在业务代码里反复手写 `Validate.isTrue(ObjectUtil.isNotNull(...), "...不能为空")` 这类可封装模板
+- 其他高频重复模板也应按职责自动抽离，例如状态判断进枚举、对象组装进 `Convert`、锁键拼装进 `XxxLockKeys`、第三方调用模板进 `client`
 - 需要稳定业务错误码的“查无数据”“状态非法”“更新失败”等失败语义，必须在 `ServiceImpl`、`domain` 或统一业务断言能力中显式翻译
 
 #### 12.5.1 注解校验消息规范
