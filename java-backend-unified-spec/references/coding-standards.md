@@ -571,6 +571,48 @@ public Long saveTimeline(SaveTimelineCommand saveTimelineCommand) {
 - 列表、分页、批量结果默认不返回 `null`
 - 查无数据时优先返回空集合、空页对象或显式业务异常
 - 不要把 `null` 当成跨层协议的常规语义
+- 空值、空串、空集合判断优先使用统一工具方法，不要在同一模块中混用多套写法
+
+#### 12.4.1 判空工具统一约束
+
+- 对对象空值判断，优先使用 `Objects.nonNull(...)`、`Objects.isNull(...)`
+- 对字符串空白判断，优先使用 `StringUtils.isNotBlank(...)`、`StringUtils.isBlank(...)`
+- 对字符串仅判空串时，才使用 `StringUtils.isNotEmpty(...)`、`StringUtils.isEmpty(...)`
+- 对集合判空，统一使用项目既有的集合工具方法，例如 `CollectionUtils.isEmpty(...)` 或 `CollUtil.isEmpty(...)`
+- 同一模块内尽量只保留一套字符串工具和一套集合工具，不要一会儿 `str != null && !str.isBlank()`，一会儿又写 `StringUtils.isNotBlank(...)`
+- 对 Query / Repo / Mapper 条件拼装，优先使用上述工具方法表达条件启停，不要手写冗长判空链
+
+推荐示例：
+
+```java
+@Override
+public Page<EmployeeDO> page(String employeeName, String mobile, Integer status, long current, long size) {
+    return employeeMapper.selectPage(
+        new Page<>(current, size),
+        Wrappers.<EmployeeDO>lambdaQuery()
+            .like(StringUtils.isNotBlank(employeeName), EmployeeDO::getEmployeeName, employeeName)
+            .eq(StringUtils.isNotBlank(mobile), EmployeeDO::getMobile, mobile)
+            .eq(Objects.nonNull(status), EmployeeDO::getStatus, status)
+            .orderByDesc(EmployeeDO::getId)
+    );
+}
+```
+
+不推荐示例：
+
+```java
+@Override
+public Page<EmployeeDO> page(String employeeName, String mobile, Integer status, long current, long size) {
+    return employeeMapper.selectPage(
+        new Page<>(current, size),
+        Wrappers.<EmployeeDO>lambdaQuery()
+            .like(employeeName != null && !employeeName.isBlank(), EmployeeDO::getEmployeeName, employeeName)
+            .eq(mobile != null && !mobile.isBlank(), EmployeeDO::getMobile, mobile)
+            .eq(status != null, EmployeeDO::getStatus, status)
+            .orderByDesc(EmployeeDO::getId)
+    );
+}
+```
 
 ### 12.5 校验分层
 

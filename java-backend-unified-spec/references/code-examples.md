@@ -656,6 +656,20 @@ public class OrderServiceImpl implements OrderService {
 ### 17.6 Repo / RepoImpl / XML 示例
 
 ```java
+@Override
+public Page<EmployeeDO> page(String employeeName, String mobile, Integer status, long current, long size) {
+    return employeeMapper.selectPage(
+        new Page<>(current, size),
+        Wrappers.<EmployeeDO>lambdaQuery()
+            .like(StringUtils.isNotBlank(employeeName), EmployeeDO::getEmployeeName, employeeName)
+            .eq(StringUtils.isNotBlank(mobile), EmployeeDO::getMobile, mobile)
+            .eq(Objects.nonNull(status), EmployeeDO::getStatus, status)
+            .orderByDesc(EmployeeDO::getId)
+    );
+}
+```
+
+```java
 /**
  * 订单仓储接口。
  */
