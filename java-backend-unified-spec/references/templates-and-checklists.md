@@ -101,7 +101,7 @@
 6. 是否产生魔法字符串、魔法数字、`Constants` 大杂烩，包括版本前缀、对象存储路径前缀等短业务字面量。
 7. 入口层装配是否放在 `Assembler`，业务层对象转换是否放在 `Convert` 中；只有特殊且很短的一次性装配才直接使用 `Builder`。
 8. 注解校验消息是否使用业务中文语义，而不是 `projectId不能为空`、`timelineDslJson不能为空` 这类字段名提示。
-9. 空值、空串、空集合、对象相等、布尔判断以及常见工具能力是否默认优先使用 Hutool，例如 `ObjectUtil.isNull(...)` / `equal(...)`、`StrUtil`、`CollUtil`、`BooleanUtil`、`MapUtil`、`BeanUtil`、`JSONUtil`、`HttpUtil` / `HttpRequest`，而不是散写 `!= null && !isBlank()`、`Objects.equals(...)`、`Boolean.TRUE.equals(...)` 或自己临时封装零散工具函数。
+9. 空值、空串、空集合、对象相等、布尔判断以及常见工具能力是否默认优先使用 Hutool，例如 `ObjectUtil.isNull(...)` / `equal(...)`、`StrUtil`、`CollUtil`、`BooleanUtil`、`MapUtil`、`BeanUtil`、`JSONUtil`、`HttpUtil` / `HttpRequest`，而不是散写 `!= null && !isBlank()`、`Objects.equals(...)`、`Boolean.TRUE.equals(...)` 或自己临时封装零散工具函数；如使用 URL / HTTP helper，是否仍保持在统一 `client` 边界并满足超时、白名单与 SSRF 防护要求。
 10. `Validate` 与 `BizException` / `BizAssert` 的使用边界是否清晰，简单守卫失败没有滥用 `BizException`，需要错误码的业务失败是否统一收口到 `BizException` / `BizAssert`，而不是误降级成裸 `Validate`。
 11. 是否错误地用裸 `Validate` 承担需要稳定业务错误码的失败语义。
 12. Repo 是否只返回数据库操作结果或 typed result，而没有在仓储层直接抛业务异常；写操作结果是否由 `ServiceImpl`、`domain` 或统一业务断言能力翻译。

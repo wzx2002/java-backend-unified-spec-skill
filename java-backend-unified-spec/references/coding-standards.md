@@ -639,20 +639,12 @@ public Page<EmployeeDO> page(String employeeName, String mobile, Integer status,
 }
 ```
 
-不推荐示例：
+不推荐片段：
 
 ```java
-@Override
-public Page<EmployeeDO> page(String employeeName, String mobile, Integer status, long current, long size) {
-    return employeeMapper.selectPage(
-        new Page<>(current, size),
-        Wrappers.<EmployeeDO>lambdaQuery()
-            .like(employeeName != null && !employeeName.isBlank(), EmployeeDO::getEmployeeName, employeeName)
-            .eq(mobile != null && !mobile.isBlank(), EmployeeDO::getMobile, mobile)
-            .eq(status != null, EmployeeDO::getStatus, status)
-            .orderByDesc(EmployeeDO::getId)
-    );
-}
+.like(employeeName != null && !employeeName.isBlank(), EmployeeDO::getEmployeeName, employeeName)
+.eq(mobile != null && !mobile.isBlank(), EmployeeDO::getMobile, mobile)
+.eq(status != null, EmployeeDO::getStatus, status)
 ```
 
 ### 12.5 校验分层
@@ -705,13 +697,11 @@ public void updateEmployee(UpdateEmployeeCommand command) {
 }
 ```
 
-不推荐示例：
+不推荐片段：
 
 ```java
-public void update(EmployeeDO employeeDO) {
-    if (employeeMapper.updateById(employeeDO) != 1) {
-        throw new BizException(AccountErrorCodes.EMPLOYEE_UPDATE_FAILED, "员工更新失败");
-    }
+if (employeeMapper.updateById(employeeDO) != 1) {
+    throw new BizException(AccountErrorCodes.EMPLOYEE_UPDATE_FAILED, "员工更新失败");
 }
 ```
 
@@ -759,25 +749,16 @@ public class SaveTimelineCommand {
 }
 ```
 
-不推荐示例：
+不推荐片段：
 
 ```java
-@Data
-public class GetTimelineQuery {
-
-    @NotNull(message = "projectId不能为空")
-    private Long projectId;
-}
+@NotNull(message = "projectId不能为空")
+@NotBlank(message = "timelineDslJson不能为空")
 ```
 
-```java
-@Data
-public class SaveTimelineCommand {
+补充说明：
 
-    @NotBlank(message = "timelineDslJson不能为空")
-    private String timelineDslJson;
-}
-```
+- 反例片段只展示问题点，不作为可复制模板，避免把错误写法再次带回生成结果
 
 ### 12.6 事务与一致性
 
