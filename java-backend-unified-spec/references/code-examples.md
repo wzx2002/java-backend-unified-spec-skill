@@ -600,9 +600,11 @@ public class OrderManager {
      * @param orderDO 订单实体
      */
     public void validateCanConfirm(OrderDO orderDO) {
-        if (!OrderStatusEnum.isPending(orderDO.getStatus())) {
-            throw new BizException(OrderErrorCodes.ORDER_STATUS_INVALID, OrderErrorMessages.ORDER_STATUS_INVALID);
-        }
+        BizAssert.isTrue(
+            OrderStatusEnum.isPending(orderDO.getStatus()),
+            OrderErrorCodes.ORDER_STATUS_INVALID,
+            OrderErrorMessages.ORDER_STATUS_INVALID
+        );
     }
 }
 ```
@@ -633,8 +635,8 @@ public class OrderServiceImpl implements OrderService {
     @NoRepeatSubmit(keyPrefix = OrderNoRepeatKeys.ADMIN_ORDER_CONFIRM, expireSeconds = 5)
     @Transactional(rollbackFor = Exception.class)
     public void confirmOrder(ConfirmOrderCommand command) {
-        Validate.isTrue(Objects.nonNull(command), "确认订单命令不能为空");
-        Validate.notBlank(command.getOrderNo(), "订单号不能为空");
+        Validate.isTrue(ObjectUtil.isNotNull(command), "确认订单命令不能为空");
+        Validate.isTrue(StrUtil.isNotBlank(command.getOrderNo()), "订单号不能为空");
         distributedLockExecutor.executeWithLock(
             OrderLockKeys.confirmOrder(command.getOrderNo()),
             3000L,
@@ -643,9 +645,7 @@ public class OrderServiceImpl implements OrderService {
                 // 校验
                 // 先按业务主键查询订单，确保后续状态校验和落库都围绕同一订单展开。
                 OrderDO orderDO = orderRepo.findByOrderNo(command.getOrderNo());
-                if (orderDO == null) {
-                    throw new BizException(OrderErrorCodes.ORDER_NOT_FOUND, OrderErrorMessages.ORDER_NOT_FOUND);
-                }
+                BizAssert.notNull(orderDO, OrderErrorCodes.ORDER_NOT_FOUND, OrderErrorMessages.ORDER_NOT_FOUND);
 
                 // 状态流转前先做领域校验，避免非法状态重复确认。
                 orderManager.validateCanConfirm(orderDO);
@@ -657,9 +657,7 @@ public class OrderServiceImpl implements OrderService {
                     command.getRemark(),
                     OrderStatusEnum.CONFIRMED.getCode()
                 );
-                if (!updated) {
-                    throw new BizException(OrderErrorCodes.ORDER_CONFIRM_FAILED, OrderErrorMessages.ORDER_CONFIRM_FAILED);
-                }
+                BizAssert.isTrue(updated, OrderErrorCodes.ORDER_CONFIRM_FAILED, OrderErrorMessages.ORDER_CONFIRM_FAILED);
 
                 // 响应
             }
@@ -676,9 +674,9 @@ public Page<EmployeeDO> page(String employeeName, String mobile, Integer status,
     return employeeMapper.selectPage(
         new Page<>(current, size),
         Wrappers.<EmployeeDO>lambdaQuery()
-            .like(StringUtils.isNotBlank(employeeName), EmployeeDO::getEmployeeName, employeeName)
-            .eq(StringUtils.isNotBlank(mobile), EmployeeDO::getMobile, mobile)
-            .eq(Objects.nonNull(status), EmployeeDO::getStatus, status)
+            .like(StrUtil.isNotBlank(employeeName), EmployeeDO::getEmployeeName, employeeName)
+            .eq(StrUtil.isNotBlank(mobile), EmployeeDO::getMobile, mobile)
+            .eq(ObjectUtil.isNotNull(status), EmployeeDO::getStatus, status)
             .orderByDesc(EmployeeDO::getId)
     );
 }
@@ -843,7 +841,7 @@ public class GlobalExceptionHandler {
     public CommonResponse<Void> handleMethodArgumentNotValidException(
         MethodArgumentNotValidException exception
     ) {
-        return CommonResponse.fail("PARAM_ERROR", "请求参数不正确");
+        return CommonResponse.fail(CommonErrorCodes.PARAM_ERROR, CommonErrorMessages.PARAM_ERROR);
     }
 
     /**
@@ -865,7 +863,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public CommonResponse<Void> handleValidateException(IllegalArgumentException exception) {
-        return CommonResponse.fail("PARAM_ERROR", exception.getMessage());
+        return CommonResponse.fail(CommonErrorCodes.PARAM_ERROR, exception.getMessage());
     }
 
     /**
@@ -876,7 +874,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public CommonResponse<Void> handleException(Exception exception) {
-        return CommonResponse.fail("SYSTEM_ERROR", "系统繁忙，请稍后重试");
+        return CommonResponse.fail(CommonErrorCodes.SYSTEM_ERROR, CommonErrorMessages.SYSTEM_ERROR);
     }
 }
 ```

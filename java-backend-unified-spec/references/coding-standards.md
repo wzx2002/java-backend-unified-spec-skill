@@ -514,13 +514,11 @@ public enum OrderStatusEnum {
 
 ```java
 // 简单守卫失败，直接使用 Validate。
-Validate.isTrue(Objects.nonNull(command), "确认订单命令不能为空");
-Validate.isTrue(StringUtils.isNotBlank(command.getOrderNo()), "订单号不能为空");
+Validate.isTrue(ObjectUtil.isNotNull(command), "确认订单命令不能为空");
+Validate.isTrue(StrUtil.isNotBlank(command.getOrderNo()), "订单号不能为空");
 
 // 需要明确错误码时，使用 BizException 或统一业务断言能力。
-if (orderDO == null) {
-    throw new BizException(OrderErrorCodes.ORDER_NOT_FOUND, OrderErrorMessages.ORDER_NOT_FOUND);
-}
+BizAssert.notNull(orderDO, OrderErrorCodes.ORDER_NOT_FOUND, OrderErrorMessages.ORDER_NOT_FOUND);
 ```
 
 ## 12. 代码质量与可维护性规范
@@ -596,17 +594,18 @@ public Long saveTimeline(SaveTimelineCommand saveTimelineCommand) {
 - 单对象 Repo 查询默认允许返回 `null`，由 `ServiceImpl`、`domain` 或统一业务断言能力翻译成业务语义
 - 如项目已经统一使用 `Optional` 表达单对象查询结果，则同一模块内保持一致，不要混用 `null` 和 `Optional`
 - 不要把 Repo 返回的 `null` 继续向 `web / interfaces` 的对外契约暴露
-- 空值、空串、空集合判断优先使用统一工具方法，不要在同一模块中混用多套写法
+- 项目默认引入 Hutool 作为通用工具库。空值、空串、空集合判断以及常见工具能力，默认优先使用 Hutool，不要在同一模块中混用多套工具风格，也不要自己散写零散工具函数
 
 #### 12.4.1 判空工具统一约束
 
-- 除非存在明确的特殊情况，否则对象空值判断强制使用 `java.util.Objects.nonNull(...)`、`java.util.Objects.isNull(...)`
-- 除非存在明确的特殊情况，否则字符串空白判断强制使用 `org.apache.commons.lang3.StringUtils.isNotBlank(...)`、`StringUtils.isBlank(...)`
-- 仅在业务确实只需要区分空串与非空串时，才使用 `org.apache.commons.lang3.StringUtils.isNotEmpty(...)`、`StringUtils.isEmpty(...)`
-- 除非存在明确的特殊情况，否则集合判空强制使用“项目统一集合 helper”
-- 项目统一集合 helper 由现有基础设施决定，可以是 `CollectionUtils.isEmpty(...)`、`CollUtil.isEmpty(...)` 或自定义的 `CollectionHelper.isEmpty(...)`
-- 一旦项目或模块已经确定集合 helper，同一模块内不要再混用第二套集合工具
-- 特殊情况仅限：现有框架 API 强约束、历史模块兼容成本过高、或项目基础设施已经统一封装成别的 helper
+- 除非存在明确的特殊情况，否则对象空值判断强制使用 `ObjectUtil.isNull(...)`、`ObjectUtil.isNotNull(...)`
+- 除非存在明确的特殊情况，否则字符串空白判断强制使用 `StrUtil.isBlank(...)`、`StrUtil.isNotBlank(...)`
+- 仅在业务确实只需要区分空串与非空串时，才使用 `StrUtil.isEmpty(...)`、`StrUtil.isNotEmpty(...)`
+- 除非存在明确的特殊情况，否则集合判空强制使用 `CollUtil.isEmpty(...)`、`CollUtil.isNotEmpty(...)`
+- `Map`、数组、Bean、JSON、日期、ID、URL 等通用能力，默认优先使用 Hutool 对应工具，例如 `MapUtil`、`ArrayUtil`、`BeanUtil`、`JSONUtil`、`DateUtil`、`IdUtil`、`URLUtil`
+- 一次性、轻量 HTTP 请求或简单第三方调用，默认优先使用 Hutool 的 `HttpUtil` 或 `HttpRequest`
+- 特殊情况仅限：现有框架 API 强约束、历史模块兼容成本过高、或项目基础设施已经统一封装成更高层能力
+- 同一模块内不要混用多套空值、字符串、集合工具，也不要自己手写重复 helper
 - 对 Query / Repo / Mapper 条件拼装，默认强制使用上述工具方法表达条件启停，不要手写冗长判空链
 
 推荐示例：
@@ -617,9 +616,9 @@ public Page<EmployeeDO> page(String employeeName, String mobile, Integer status,
     return employeeMapper.selectPage(
         new Page<>(current, size),
         Wrappers.<EmployeeDO>lambdaQuery()
-            .like(StringUtils.isNotBlank(employeeName), EmployeeDO::getEmployeeName, employeeName)
-            .eq(StringUtils.isNotBlank(mobile), EmployeeDO::getMobile, mobile)
-            .eq(Objects.nonNull(status), EmployeeDO::getStatus, status)
+            .like(StrUtil.isNotBlank(employeeName), EmployeeDO::getEmployeeName, employeeName)
+            .eq(StrUtil.isNotBlank(mobile), EmployeeDO::getMobile, mobile)
+            .eq(ObjectUtil.isNotNull(status), EmployeeDO::getStatus, status)
             .orderByDesc(EmployeeDO::getId)
     );
 }
@@ -680,18 +679,14 @@ public boolean update(EmployeeDO employeeDO) {
 @Transactional(rollbackFor = Exception.class)
 public void updateEmployee(UpdateEmployeeCommand command) {
     // 校验
-    Validate.isTrue(Objects.nonNull(command), "更新员工命令不能为空");
+    Validate.isTrue(ObjectUtil.isNotNull(command), "更新员工命令不能为空");
     EmployeeDO employeeDO = employeeRepo.findById(command.getEmployeeId());
-    if (employeeDO == null) {
-        throw new BizException(AccountErrorCodes.EMPLOYEE_NOT_FOUND, AccountErrorMessages.EMPLOYEE_NOT_FOUND);
-    }
+    BizAssert.notNull(employeeDO, AccountErrorCodes.EMPLOYEE_NOT_FOUND, AccountErrorMessages.EMPLOYEE_NOT_FOUND);
 
     // 更新
     employeeConvert.fillForUpdate(command, employeeDO);
     boolean updated = employeeRepo.update(employeeDO);
-    if (!updated) {
-        throw new BizException(AccountErrorCodes.EMPLOYEE_UPDATE_FAILED, AccountErrorMessages.EMPLOYEE_UPDATE_FAILED);
-    }
+    BizAssert.isTrue(updated, AccountErrorCodes.EMPLOYEE_UPDATE_FAILED, AccountErrorMessages.EMPLOYEE_UPDATE_FAILED);
 }
 ```
 
