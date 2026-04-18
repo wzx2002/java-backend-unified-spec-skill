@@ -601,9 +601,10 @@ public Long saveTimeline(SaveTimelineCommand saveTimelineCommand) {
 - 除非存在明确的特殊情况，否则对象空值判断强制使用 `java.util.Objects.nonNull(...)`、`java.util.Objects.isNull(...)`
 - 除非存在明确的特殊情况，否则字符串空白判断强制使用 `org.apache.commons.lang3.StringUtils.isNotBlank(...)`、`StringUtils.isBlank(...)`
 - 仅在业务确实只需要区分空串与非空串时，才使用 `org.apache.commons.lang3.StringUtils.isNotEmpty(...)`、`StringUtils.isEmpty(...)`
-- 除非存在明确的特殊情况，否则集合判空强制使用 `org.springframework.util.CollectionUtils.isEmpty(...)`
+- 除非存在明确的特殊情况，否则集合判空强制使用“项目统一集合 helper”
+- 项目统一集合 helper 由现有基础设施决定，可以是 `CollectionUtils.isEmpty(...)`、`CollUtil.isEmpty(...)` 或自定义的 `CollectionHelper.isEmpty(...)`
+- 一旦项目或模块已经确定集合 helper，同一模块内不要再混用第二套集合工具
 - 特殊情况仅限：现有框架 API 强约束、历史模块兼容成本过高、或项目基础设施已经统一封装成别的 helper
-- 同一模块内不要混用多套集合工具，不要一会儿 `CollectionUtils.isEmpty(...)`，一会儿又写 `CollUtil.isEmpty(...)`
 - 对 Query / Repo / Mapper 条件拼装，默认强制使用上述工具方法表达条件启停，不要手写冗长判空链
 
 推荐示例：
