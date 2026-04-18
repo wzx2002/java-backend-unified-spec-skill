@@ -121,6 +121,7 @@ project-parent
 - 缓存
 - HTTP Client
 - 全局异常
+- 业务断言基础能力
 
 推荐目录：
 
@@ -139,6 +140,7 @@ infrastructure
 ├─ trace
 ├─ exception
 ├─ exception/code
+├─ exception/assert
 ├─ response
 ├─ util
 ├─ redis

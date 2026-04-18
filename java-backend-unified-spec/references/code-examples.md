@@ -820,7 +820,48 @@ public class XxxAiClient implements AiClient {
 }
 ```
 
-### 17.8 全局异常处理示例
+### 17.8 BizAssert 示例
+
+```java
+/**
+ * 统一业务断言工具。
+ * <p>
+ * 负责把通用断言失败翻译成稳定的业务异常，不承载具体业务规则。
+ */
+public final class BizAssert {
+
+    private BizAssert() {
+    }
+
+    /**
+     * 断言对象非空。
+     *
+     * @param value   待校验对象
+     * @param code    业务错误码
+     * @param message 业务错误提示
+     */
+    public static void notNull(Object value, String code, String message) {
+        if (ObjectUtil.isNull(value)) {
+            throw new BizException(code, message);
+        }
+    }
+
+    /**
+     * 断言条件成立。
+     *
+     * @param expression 条件表达式
+     * @param code       业务错误码
+     * @param message    业务错误提示
+     */
+    public static void isTrue(boolean expression, String code, String message) {
+        if (!expression) {
+            throw new BizException(code, message);
+        }
+    }
+}
+```
+
+### 17.9 全局异常处理示例
 
 ```java
 /**

@@ -39,6 +39,7 @@
 - 领域管理器：`XxxManager`
 - 规则校验器：`XxxValidator`
 - 业务策略：`XxxPolicy`
+- 业务断言工具：默认使用 `BizAssert`，模块专用断言工具可使用 `XxxBizAssert`
 
 补充说明：
 
@@ -471,7 +472,7 @@ public enum OrderStatusEnum {
 - 异常分类必须明确
 - 前后台统一使用同一套响应结构
 - 统一响应优先使用带泛型的响应体，例如 `CommonResponse<T>`，不要到处使用原始类型
-- 简单参数前置校验统一优先使用 Apache Commons Lang3 的 `Validate.notNull(...)`、`Validate.isTrue(...)` 等写法，不要在业务代码中散写重复的 `if (...) { throw ... }`
+- 简单参数前置校验统一优先使用 Apache Commons Lang3 的 `Validate.isTrue(...)` 等写法，不要在业务代码中散写重复的 `if (...) { throw ... }`
 - 对字段存在性、开关状态、活动任务冲突、重复提交等简单守卫式失败分支，也默认优先使用 `Validate`，而不是裸写 `if + throw`
 - 对“查无数据”“状态非法”“更新失败”等需要稳定业务错误码的失败语义，应使用 `BizException` 或项目统一业务异常断言能力，不要直接使用裸 `Validate`
 
@@ -499,14 +500,15 @@ public enum OrderStatusEnum {
 - 第三方异常要映射成业务可理解的异常类型
 - Controller 只负责抛出语义明确的异常，不负责拼装复杂错误响应
 - `Validate` 触发的参数校验异常要由统一异常处理器收口
-- 若项目使用 `Validate.notNull(...)` 作为业务层简单守卫，异常处理器需显式考虑其 `NullPointerException` 收口方式
 - 不要把所有 `NullPointerException` 一律映射为参数错误，避免把真实程序错误误判成前置校验失败
 - 示例和默认规范中，不建议通过 `@ExceptionHandler(NullPointerException.class)` 全局把 `NullPointerException` 直接映射为 `PARAM_ERROR`
 - 如果项目需要稳定返回参数错误或业务错误码，优先改用项目级断言 helper、`BizException`、或不会落入全局 `NullPointerException` 分支的统一异常写法
+- 默认不要把 `Validate.notNull(...)` 作为简单空值守卫写法，除非项目已经明确约束其异常收口方式并愿意承担对应契约
 
 #### 11.1 `Validate` 与 `BizException` 使用边界
 
-- 简单前置校验、简单守卫式失败、基础存在性校验，默认优先使用 `Validate.notNull(...)`、`Validate.isTrue(...)`
+- 简单前置校验、简单守卫式失败、基础存在性校验，默认优先使用 `Validate.isTrue(...)`
+- 对简单空值校验，默认使用 `Validate.isTrue(ObjectUtil.isNotNull(...), "...不能为空")`，不要把 `Validate.notNull(...)` 当成默认推荐写法
 - 需要明确业务错误码、区分业务异常类别、保留稳定异常契约时，使用 `BizException` 或项目内的专用业务异常
 - 不要为了简单空值判断专门 new 一个 `BizException`
 - 不要把原本需要错误码的业务失败全部降级成只有文案的 `Validate`
@@ -521,6 +523,14 @@ Validate.isTrue(StrUtil.isNotBlank(command.getOrderNo()), "订单号不能为空
 // 需要明确错误码时，使用 BizException 或统一业务断言能力。
 BizAssert.notNull(orderDO, OrderErrorCodes.ORDER_NOT_FOUND, OrderErrorMessages.ORDER_NOT_FOUND);
 ```
+
+#### 11.2 `BizAssert` 统一业务断言能力
+
+- 需要稳定业务错误码、稳定异常契约、统一业务失败翻译时，推荐提供项目级业务断言工具
+- 默认命名使用 `BizAssert`；只有模块边界明确且断言能力确实隔离时，才使用 `XxxBizAssert`
+- 默认放在 `infrastructure/exception/assert` 或等价的全局异常基础设施目录中，不要散落到具体业务模块的 `util`
+- `BizAssert` 只负责把统一断言失败翻译成业务异常，不承载具体业务规则本身
+- `BizAssert` 常见能力包括 `notNull(...)`、`isTrue(...)`、`notBlank(...)` 等，但方法命名和异常契约必须在项目内保持一致
 
 ## 12. 代码质量与可维护性规范
 
@@ -649,7 +659,7 @@ public Page<EmployeeDO> page(String employeeName, String mobile, Integer status,
 - `web / interfaces` 负责格式校验、必填校验、长度校验、枚举值校验
 - `domain` 或 `validator` 负责业务不变量、状态合法性、金额口径校验
 - `business`、`domain`、`validator` 中的简单前置条件校验，优先统一使用 `org.apache.commons.lang3.Validate`
-- 对空值校验统一优先使用 `Validate.notNull(...)`
+- 对空值校验统一优先使用 `Validate.isTrue(ObjectUtil.isNotNull(...), "...不能为空")`
 - 对布尔条件校验统一优先使用 `Validate.isTrue(...)`
 - 不要在多个业务方法里重复散写 `if (...) { throw new BizException(...) }` 作为基础前置校验模板
 - `if` 可以用于正常业务分支，但对简单守卫式失败不要写成 `if (...) { throw ... }`
@@ -707,6 +717,7 @@ public void update(EmployeeDO employeeDO) {
 补充说明：
 
 - 简单参数存在性、基础布尔守卫、格式前置条件仍然优先使用 `Validate`
+- 默认不把 `Validate.notNull(...)` 作为简单空值守卫写法，避免默认契约落入 `NullPointerException`
 - 需要稳定业务错误码的“查无数据”“状态非法”“更新失败”等失败语义，必须在 `ServiceImpl`、`domain` 或统一业务断言能力中显式翻译
 
 #### 12.5.1 注解校验消息规范
