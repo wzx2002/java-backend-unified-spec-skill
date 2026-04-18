@@ -470,8 +470,9 @@ public enum OrderStatusEnum {
 - 异常分类必须明确
 - 前后台统一使用同一套响应结构
 - 统一响应优先使用带泛型的响应体，例如 `CommonResponse<T>`，不要到处使用原始类型
-- 参数前置校验统一优先使用 Apache Commons Lang3 的 `Validate.notNull(...)`、`Validate.isTrue(...)` 等写法，不要在业务代码中散写重复的 `if (...) { throw ... }`
-- 对存在性、状态合法性、活动任务冲突、重复提交等守卫式失败分支，也默认优先使用 `Validate`，而不是裸写 `if + throw`
+- 简单参数前置校验统一优先使用 Apache Commons Lang3 的 `Validate.notNull(...)`、`Validate.isTrue(...)` 等写法，不要在业务代码中散写重复的 `if (...) { throw ... }`
+- 对字段存在性、开关状态、活动任务冲突、重复提交等简单守卫式失败分支，也默认优先使用 `Validate`，而不是裸写 `if + throw`
+- 对“查无数据”“状态非法”“更新失败”等需要稳定业务错误码的失败语义，应使用 `BizException` 或项目统一业务异常断言能力，不要直接使用裸 `Validate`
 
 推荐异常类：
 
@@ -497,7 +498,28 @@ public enum OrderStatusEnum {
 - 第三方异常要映射成业务可理解的异常类型
 - Controller 只负责抛出语义明确的异常，不负责拼装复杂错误响应
 - `Validate` 触发的参数校验异常要由统一异常处理器收口
+- 若项目使用 `Validate.notNull(...)` 作为业务层简单守卫，异常处理器需显式考虑其 `NullPointerException` 收口方式
 - 不要把所有 `NullPointerException` 一律映射为参数错误，避免把真实程序错误误判成前置校验失败
+
+#### 11.1 `Validate` 与 `BizException` 使用边界
+
+- 简单前置校验、简单守卫式失败、基础存在性校验，默认优先使用 `Validate.notNull(...)`、`Validate.isTrue(...)`
+- 需要明确业务错误码、区分业务异常类别、保留稳定异常契约时，使用 `BizException` 或项目内的专用业务异常
+- 不要为了简单空值判断专门 new 一个 `BizException`
+- 不要把原本需要错误码的业务失败全部降级成只有文案的 `Validate`
+
+推荐示例：
+
+```java
+// 简单守卫失败，直接使用 Validate。
+Validate.notNull(command, "确认订单命令不能为空");
+Validate.isTrue(StringUtils.isNotBlank(command.getOrderNo()), "订单号不能为空");
+
+// 需要明确错误码时，使用 BizException 或统一业务断言能力。
+if (orderDO == null) {
+    throw new BizException(OrderErrorCodes.ORDER_NOT_FOUND, OrderErrorMessages.ORDER_NOT_FOUND);
+}
+```
 
 ## 12. 代码质量与可维护性规范
 
@@ -569,16 +591,17 @@ public Long saveTimeline(SaveTimelineCommand saveTimelineCommand) {
 ### 12.4 空值与返回值
 
 - 列表、分页、批量结果默认不返回 `null`
-- 查无数据时优先返回空集合、空页对象或显式业务异常
-- 不要把 `null` 当成跨层协议的常规语义
+- 单对象 Repo 查询默认允许返回 `null`，由 `ServiceImpl`、`domain` 或统一业务断言能力翻译成业务语义
+- 如项目已经统一使用 `Optional` 表达单对象查询结果，则同一模块内保持一致，不要混用 `null` 和 `Optional`
+- 不要把 Repo 返回的 `null` 继续向 `web / interfaces` 的对外契约暴露
 - 空值、空串、空集合判断优先使用统一工具方法，不要在同一模块中混用多套写法
 
 #### 12.4.1 判空工具统一约束
 
-- 对对象空值判断，优先使用 `Objects.nonNull(...)`、`Objects.isNull(...)`
-- 对字符串空白判断，优先使用 `StringUtils.isNotBlank(...)`、`StringUtils.isBlank(...)`
-- 对字符串仅判空串时，才使用 `StringUtils.isNotEmpty(...)`、`StringUtils.isEmpty(...)`
-- 对集合判空，统一使用项目既有的集合工具方法，例如 `CollectionUtils.isEmpty(...)` 或 `CollUtil.isEmpty(...)`
+- 对对象空值判断，优先使用 `java.util.Objects.nonNull(...)`、`java.util.Objects.isNull(...)`
+- 对字符串空白判断，优先使用 `org.apache.commons.lang3.StringUtils.isNotBlank(...)`、`StringUtils.isBlank(...)`
+- 对字符串仅判空串时，才使用 `org.apache.commons.lang3.StringUtils.isNotEmpty(...)`、`StringUtils.isEmpty(...)`
+- 对集合判空，统一使用项目既有且在模块内明确选定的一套集合工具方法，例如 `org.springframework.util.CollectionUtils.isEmpty(...)` 或 `cn.hutool.core.collection.CollUtil.isEmpty(...)`
 - 同一模块内尽量只保留一套字符串工具和一套集合工具，不要一会儿 `str != null && !str.isBlank()`，一会儿又写 `StringUtils.isNotBlank(...)`
 - 对 Query / Repo / Mapper 条件拼装，优先使用上述工具方法表达条件启停，不要手写冗长判空链
 
@@ -618,13 +641,16 @@ public Page<EmployeeDO> page(String employeeName, String mobile, Integer status,
 
 - `web / interfaces` 负责格式校验、必填校验、长度校验、枚举值校验
 - `domain` 或 `validator` 负责业务不变量、状态合法性、金额口径校验
-- `business`、`domain`、`validator` 中的前置条件校验，优先统一使用 `org.apache.commons.lang3.Validate`
+- `business`、`domain`、`validator` 中的简单前置条件校验，优先统一使用 `org.apache.commons.lang3.Validate`
 - 对空值校验统一优先使用 `Validate.notNull(...)`
 - 对布尔条件校验统一优先使用 `Validate.isTrue(...)`
 - 不要在多个业务方法里重复散写 `if (...) { throw new BizException(...) }` 作为基础前置校验模板
 - `if` 可以用于正常业务分支，但对简单守卫式失败不要写成 `if (...) { throw ... }`
+- 对需要稳定业务错误码的失败语义，不要直接使用裸 `Validate`，应使用 `BizException` 或项目统一业务异常断言能力翻译
 - Repo 不承载业务规则校验，也不承载“更新失败”“状态非法”“查无数据”这类业务异常翻译
-- Repo 写操作默认返回 `boolean`、影响行数或主键等数据库结果，由 `ServiceImpl` 负责使用 `Validate.isTrue(...)`、`Validate.notNull(...)` 或统一业务异常机制收口
+- 单对象 Repo 查询默认允许返回 `null`，由 `ServiceImpl`、`domain` 或统一业务断言能力翻译成业务语义
+- Repo 返回值默认按操作类型统一：`insert` 返回主键或已回填主键的实体，`update` / `delete` / 状态更新默认返回 `boolean`，`count` 返回计数值，`exists` 返回 `boolean`
+- Repo 写操作默认返回 `boolean`、影响行数、主键等数据库结果；复杂条件写操作如调用方需要区分失败原因，可返回显式结果对象、枚举或其他 typed result
 
 推荐示例：
 
@@ -650,13 +676,18 @@ public boolean update(EmployeeDO employeeDO) {
 @Transactional(rollbackFor = Exception.class)
 public void updateEmployee(UpdateEmployeeCommand command) {
     // 校验
+    Validate.notNull(command, "更新员工命令不能为空");
     EmployeeDO employeeDO = employeeRepo.findById(command.getEmployeeId());
-    Validate.notNull(employeeDO, AccountErrorMessages.EMPLOYEE_NOT_FOUND);
+    if (employeeDO == null) {
+        throw new BizException(AccountErrorCodes.EMPLOYEE_NOT_FOUND, AccountErrorMessages.EMPLOYEE_NOT_FOUND);
+    }
 
     // 更新
     employeeConvert.fillForUpdate(command, employeeDO);
     boolean updated = employeeRepo.update(employeeDO);
-    Validate.isTrue(updated, AccountErrorMessages.EMPLOYEE_UPDATE_FAILED);
+    if (!updated) {
+        throw new BizException(AccountErrorCodes.EMPLOYEE_UPDATE_FAILED, AccountErrorMessages.EMPLOYEE_UPDATE_FAILED);
+    }
 }
 ```
 
@@ -669,6 +700,11 @@ public void update(EmployeeDO employeeDO) {
     }
 }
 ```
+
+补充说明：
+
+- 简单参数存在性、基础布尔守卫、格式前置条件仍然优先使用 `Validate`
+- 需要稳定业务错误码的“查无数据”“状态非法”“更新失败”等失败语义，必须在 `ServiceImpl`、`domain` 或统一业务断言能力中显式翻译
 
 #### 12.5.1 注解校验消息规范
 

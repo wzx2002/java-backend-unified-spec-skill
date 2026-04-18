@@ -213,6 +213,11 @@ public final class OrderErrorCodes {
      */
     public static final String ORDER_STATUS_INVALID = "ORDER_STATUS_INVALID";
 
+    /**
+     * 订单确认失败。
+     */
+    public static final String ORDER_CONFIRM_FAILED = "ORDER_CONFIRM_FAILED";
+
     private OrderErrorCodes() {
     }
 }
@@ -233,6 +238,11 @@ public final class OrderErrorMessages {
      * 当前订单状态不允许确认。
      */
     public static final String ORDER_STATUS_INVALID = "订单状态不允许确认";
+
+    /**
+     * 订单确认失败。
+     */
+    public static final String ORDER_CONFIRM_FAILED = "订单确认失败";
 
     private OrderErrorMessages() {
     }
@@ -398,7 +408,7 @@ public enum OrderStatusEnum {
 }
 ```
 
-### 17.3 Controller / Request / Convert 示例
+### 17.3 Controller / Request / Assembler / Convert 示例
 
 ```java
 /**
@@ -590,10 +600,9 @@ public class OrderManager {
      * @param orderDO 订单实体
      */
     public void validateCanConfirm(OrderDO orderDO) {
-        Validate.isTrue(
-            OrderStatusEnum.isPending(orderDO.getStatus()),
-            OrderErrorMessages.ORDER_STATUS_INVALID
-        );
+        if (!OrderStatusEnum.isPending(orderDO.getStatus())) {
+            throw new BizException(OrderErrorCodes.ORDER_STATUS_INVALID, OrderErrorMessages.ORDER_STATUS_INVALID);
+        }
     }
 }
 ```
@@ -624,6 +633,8 @@ public class OrderServiceImpl implements OrderService {
     @NoRepeatSubmit(keyPrefix = OrderNoRepeatKeys.ADMIN_ORDER_CONFIRM, expireSeconds = 5)
     @Transactional(rollbackFor = Exception.class)
     public void confirmOrder(ConfirmOrderCommand command) {
+        Validate.notNull(command, "确认订单命令不能为空");
+        Validate.notBlank(command.getOrderNo(), "订单号不能为空");
         distributedLockExecutor.executeWithLock(
             OrderLockKeys.confirmOrder(command.getOrderNo()),
             3000L,
@@ -632,7 +643,9 @@ public class OrderServiceImpl implements OrderService {
                 // 校验
                 // 先按业务主键查询订单，确保后续状态校验和落库都围绕同一订单展开。
                 OrderDO orderDO = orderRepo.findByOrderNo(command.getOrderNo());
-                Validate.notNull(orderDO, OrderErrorMessages.ORDER_NOT_FOUND);
+                if (orderDO == null) {
+                    throw new BizException(OrderErrorCodes.ORDER_NOT_FOUND, OrderErrorMessages.ORDER_NOT_FOUND);
+                }
 
                 // 状态流转前先做领域校验，避免非法状态重复确认。
                 orderManager.validateCanConfirm(orderDO);
@@ -644,7 +657,9 @@ public class OrderServiceImpl implements OrderService {
                     command.getRemark(),
                     OrderStatusEnum.CONFIRMED.getCode()
                 );
-                Validate.isTrue(updated, OrderErrorMessages.ORDER_CONFIRM_FAILED);
+                if (!updated) {
+                    throw new BizException(OrderErrorCodes.ORDER_CONFIRM_FAILED, OrderErrorMessages.ORDER_CONFIRM_FAILED);
+                }
 
                 // 响应
             }
@@ -679,7 +694,7 @@ public interface OrderRepo {
      * 根据订单号查询订单。
      *
      * @param orderNo 订单号
-     * @return 订单实体，查无数据时返回 null
+     * @return 订单实体，查无数据时返回 null，由业务层翻译成业务语义
      */
     OrderDO findByOrderNo(String orderNo);
 
@@ -711,7 +726,7 @@ public class OrderRepoImpl implements OrderRepo {
      * 根据订单号查询订单。
      *
      * @param orderNo 订单号
-     * @return 订单实体，查无数据时返回 null
+     * @return 订单实体，查无数据时返回 null，由业务层翻译成业务语义
      */
     @Override
     public OrderDO findByOrderNo(String orderNo) {
@@ -850,6 +865,17 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public CommonResponse<Void> handleValidateException(IllegalArgumentException exception) {
+        return CommonResponse.fail("PARAM_ERROR", exception.getMessage());
+    }
+
+    /**
+     * 处理 `Validate.notNull(...)` 等简单守卫抛出的空指针异常。
+     *
+     * @param exception 空指针异常
+     * @return 失败响应
+     */
+    @ExceptionHandler(NullPointerException.class)
+    public CommonResponse<Void> handleValidateNullPointerException(NullPointerException exception) {
         return CommonResponse.fail("PARAM_ERROR", exception.getMessage());
     }
 

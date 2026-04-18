@@ -357,8 +357,12 @@ integration
 - 单表简单查询优先使用项目既有 ORM / Mapper 查询能力
 - 单表状态更新优先使用项目既有数据访问组件能力
 - 多表联查、统计、导出、对账统一进入明确的数据访问实现，例如 SQL 文件、Mapper XML 或查询实现类
-- Repo / RepoImpl 只承接数据访问语义，不承接“员工更新失败”“订单状态非法”“数据不存在”这类业务异常语义
-- Repo 写操作默认返回 `boolean`、影响行数或持久化后的主键等数据库操作结果，由 `ServiceImpl` 负责根据结果统一做业务判断
+- Repo / RepoImpl 只承接数据访问语义，不直接把“员工更新失败”“订单状态非法”“数据不存在”这类结果翻译成业务异常
+- 单对象 Repo 查询默认允许返回 `null` 表示查无数据；如项目已经统一使用 `Optional`，在同一模块内保持一致即可
+- Repo 返回的单对象空结果由 `ServiceImpl`、`domain` 或项目统一业务断言能力翻译成业务语义，不要直接把 `null` 暴露到 `web / interfaces` 的对外契约
+- Repo 返回值默认按数据库操作类型统一：`insert` 返回主键或持久化后的实体，`update` / `delete` / 状态流转更新默认返回 `boolean`，`count` 返回计数值，`exists` 返回 `boolean`
+- 复杂条件写操作如调用方需要区分失败原因，可返回显式结果对象、枚举或其他 typed result
+- Repo 不负责把数据库结果翻译成业务错误码或业务异常，由 `ServiceImpl`、`domain` 或项目统一业务断言能力负责结果翻译
 - Repo 查询方法必须写中文注释
 
 `integration` 或 `infrastructure/client` 只负责：
