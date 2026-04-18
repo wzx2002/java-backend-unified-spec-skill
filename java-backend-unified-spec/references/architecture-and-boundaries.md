@@ -357,6 +357,8 @@ integration
 - 单表简单查询优先使用项目既有 ORM / Mapper 查询能力
 - 单表状态更新优先使用项目既有数据访问组件能力
 - 多表联查、统计、导出、对账统一进入明确的数据访问实现，例如 SQL 文件、Mapper XML 或查询实现类
+- Repo / RepoImpl 只承接数据访问语义，不承接“员工更新失败”“订单状态非法”“数据不存在”这类业务异常语义
+- Repo 写操作默认返回 `boolean`、影响行数或持久化后的主键等数据库操作结果，由 `ServiceImpl` 负责根据结果统一做业务判断
 - Repo 查询方法必须写中文注释
 
 `integration` 或 `infrastructure/client` 只负责：

@@ -581,7 +581,52 @@ public Long saveTimeline(SaveTimelineCommand saveTimelineCommand) {
 - 对布尔条件校验统一优先使用 `Validate.isTrue(...)`
 - 不要在多个业务方法里重复散写 `if (...) { throw new BizException(...) }` 作为基础前置校验模板
 - `if` 可以用于正常业务分支，但对简单守卫式失败不要写成 `if (...) { throw ... }`
-- Repo 不承载业务规则校验
+- Repo 不承载业务规则校验，也不承载“更新失败”“状态非法”“查无数据”这类业务异常翻译
+- Repo 写操作默认返回 `boolean`、影响行数或主键等数据库结果，由 `ServiceImpl` 负责使用 `Validate.isTrue(...)`、`Validate.notNull(...)` 或统一业务异常机制收口
+
+推荐示例：
+
+```java
+/**
+ * 更新员工信息。
+ *
+ * @param employeeDO 员工实体
+ * @return 是否更新成功
+ */
+public boolean update(EmployeeDO employeeDO) {
+    return employeeMapper.updateById(employeeDO) > 0;
+}
+```
+
+```java
+/**
+ * 更新员工。
+ *
+ * @param command 更新员工命令
+ */
+@Override
+@Transactional(rollbackFor = Exception.class)
+public void updateEmployee(UpdateEmployeeCommand command) {
+    // 校验
+    EmployeeDO employeeDO = employeeRepo.findById(command.getEmployeeId());
+    Validate.notNull(employeeDO, AccountErrorMessages.EMPLOYEE_NOT_FOUND);
+
+    // 更新
+    employeeConvert.fillForUpdate(command, employeeDO);
+    boolean updated = employeeRepo.update(employeeDO);
+    Validate.isTrue(updated, AccountErrorMessages.EMPLOYEE_UPDATE_FAILED);
+}
+```
+
+不推荐示例：
+
+```java
+public void update(EmployeeDO employeeDO) {
+    if (employeeMapper.updateById(employeeDO) != 1) {
+        throw new BizException(AccountErrorCodes.EMPLOYEE_UPDATE_FAILED, "员工更新失败");
+    }
+}
+```
 
 #### 12.5.1 注解校验消息规范
 

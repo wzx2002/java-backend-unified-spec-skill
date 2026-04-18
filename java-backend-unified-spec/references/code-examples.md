@@ -629,6 +629,7 @@ public class OrderServiceImpl implements OrderService {
             3000L,
             10000L,
             () -> {
+                // 校验
                 // 先按业务主键查询订单，确保后续状态校验和落库都围绕同一订单展开。
                 OrderDO orderDO = orderRepo.findByOrderNo(command.getOrderNo());
                 Validate.notNull(orderDO, OrderErrorMessages.ORDER_NOT_FOUND);
@@ -636,12 +637,16 @@ public class OrderServiceImpl implements OrderService {
                 // 状态流转前先做领域校验，避免非法状态重复确认。
                 orderManager.validateCanConfirm(orderDO);
 
+                // 更新
                 // 在持有分布式锁期间完成状态更新，防止并发确认造成重复写入。
-                orderRepo.confirmOrder(
+                boolean updated = orderRepo.confirmOrder(
                     orderDO.getId(),
                     command.getRemark(),
                     OrderStatusEnum.CONFIRMED.getCode()
                 );
+                Validate.isTrue(updated, OrderErrorMessages.ORDER_CONFIRM_FAILED);
+
+                // 响应
             }
         );
     }
@@ -670,8 +675,9 @@ public interface OrderRepo {
      * @param id 订单主键
      * @param remark 确认备注
      * @param status 目标状态
+     * @return 是否更新成功
      */
-    void confirmOrder(Long id, String remark, Integer status);
+    boolean confirmOrder(Long id, String remark, Integer status);
 }
 ```
 
@@ -707,16 +713,17 @@ public class OrderRepoImpl implements OrderRepo {
      * @param id 订单主键
      * @param remark 确认备注
      * @param status 目标状态
+     * @return 是否更新成功
      */
     @Override
-    public void confirmOrder(Long id, String remark, Integer status) {
-        orderMapper.update(
+    public boolean confirmOrder(Long id, String remark, Integer status) {
+        return orderMapper.update(
             null,
             Wrappers.lambdaUpdate(OrderDO.class)
                 .eq(OrderDO::getId, id)
                 .set(OrderDO::getStatus, status)
                 .set(OrderDO::getConfirmRemark, remark)
-        );
+        ) > 0;
     }
 }
 ```
