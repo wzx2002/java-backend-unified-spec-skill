@@ -403,7 +403,7 @@ public enum OrderStatusEnum {
      * @return 是否为待处理
      */
     public static boolean isPending(Integer code) {
-        return PENDING.getCode().equals(code);
+        return ObjectUtil.equal(PENDING.getCode(), code);
     }
 }
 ```

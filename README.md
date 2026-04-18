@@ -28,6 +28,8 @@ Unified Java backend standards and reusable skill for module-first architecture,
 
 ```text
 java-backend-unified-spec-skill/
+|-- scripts/
+|   `-- validate_skill_consistency.py
 `-- java-backend-unified-spec/
     |-- SKILL.md
     `-- references/
@@ -62,3 +64,10 @@ cp -R ./java-backend-unified-spec-skill/java-backend-unified-spec ~/.codex/skill
 ```
 
 Restart Codex after installation so the skill can be discovered.
+
+## Validation
+
+```bash
+python3 -m py_compile scripts/validate_skill_consistency.py
+python3 scripts/validate_skill_consistency.py
+```

@@ -113,6 +113,7 @@
 - 枚举项统一使用 `UPPER_SNAKE_CASE`
 - 状态、类型、来源、原因等有限取值判断，优先收口到枚举静态方法，例如 `OrderStatusEnum.isPending(status)`
 - 不要在业务代码中重复散写 `XxxEnum.SOME_STATUS.getCode().equals(value)` 这类判断
+- 枚举静态判断内部默认使用 `ObjectUtil.equal(...)` 做空安全比较，避免在同一模块里混用 `equals(...)`、`Objects.equals(...)` 与其他工具风格
 
 ## 8. 注释规范
 
@@ -599,13 +600,16 @@ public Long saveTimeline(SaveTimelineCommand saveTimelineCommand) {
 #### 12.4.1 判空工具统一约束
 
 - 除非存在明确的特殊情况，否则对象空值判断强制使用 `ObjectUtil.isNull(...)`、`ObjectUtil.isNotNull(...)`
+- 除非存在明确的特殊情况，否则对象相等判断强制使用 `ObjectUtil.equal(...)`、`ObjectUtil.notEqual(...)`
 - 除非存在明确的特殊情况，否则字符串空白判断强制使用 `StrUtil.isBlank(...)`、`StrUtil.isNotBlank(...)`
 - 仅在业务确实只需要区分空串与非空串时，才使用 `StrUtil.isEmpty(...)`、`StrUtil.isNotEmpty(...)`
 - 除非存在明确的特殊情况，否则集合判空强制使用 `CollUtil.isEmpty(...)`、`CollUtil.isNotEmpty(...)`
+- 对 `Boolean` 装箱值、三态标记位、可空布尔开关，默认使用 `BooleanUtil.isTrue(...)`、`BooleanUtil.isFalse(...)`，不要散写 `Boolean.TRUE.equals(flag)`、`Boolean.FALSE.equals(flag)`
 - `Map`、数组、Bean、JSON、日期、ID、URL 等通用能力，默认优先使用 Hutool 对应工具，例如 `MapUtil`、`ArrayUtil`、`BeanUtil`、`JSONUtil`、`DateUtil`、`IdUtil`、`URLUtil`
 - 一次性、轻量 HTTP 请求或简单第三方调用，默认优先使用 Hutool 的 `HttpUtil` 或 `HttpRequest`
 - 特殊情况仅限：现有框架 API 强约束、历史模块兼容成本过高、或项目基础设施已经统一封装成更高层能力
 - 同一模块内不要混用多套空值、字符串、集合工具，也不要自己手写重复 helper
+- 同一模块内不要混用 `ObjectUtil.equal(...)`、`Objects.equals(...)`、`Boolean.TRUE.equals(...)` 等多套判断风格
 - 对 Query / Repo / Mapper 条件拼装，默认强制使用上述工具方法表达条件启停，不要手写冗长判空链
 
 推荐示例：
