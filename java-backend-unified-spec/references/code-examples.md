@@ -35,6 +35,10 @@ infrastructure
 │  └─ RiskCheckAspect.java
 ├─ exception
 │  ├─ BizException.java
+│  ├─ code
+│  │  └─ CommonErrorCodes.java
+│  ├─ assert
+│  │  └─ BizAssert.java
 │  ├─ PermissionException.java
 │  ├─ RiskControlException.java
 │  └─ GlobalExceptionHandler.java

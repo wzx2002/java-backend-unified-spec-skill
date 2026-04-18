@@ -288,7 +288,8 @@ public class OrderCreateResultVO {
 
 - 同时需要 getter / setter 的可变数据载体，默认优先使用 `@Data`
 - 只需要只读访问的对象，优先使用 `@Getter`
-- `Command`、`DTO`、`VO`、内部快照载荷等对象，默认优先考虑 `@Builder`
+- 对 `Command`、`DTO`、`VO`、内部快照载荷、Convert 转换目标等对象，如果主要通过集中装配、不可变表达或一次性构造完成赋值，默认优先考虑 `@Builder`
+- 如果 `Command`、`Query`、`VO` 等对象在当前项目中需要开放常规 getter / setter 并承担可变数据载体角色，仍然优先使用 `@Data`
 - 枚举默认使用 `@Getter` 即可，不要给枚举加 `@Setter`
 - 不要为纯字段读写手写 getter / setter
 - 只有在框架兼容要求、序列化约束、访问控制定制、字段派生逻辑等场景下，才允许手写访问方法
@@ -616,7 +617,7 @@ public Long saveTimeline(SaveTimelineCommand saveTimelineCommand) {
 - 除非存在明确的特殊情况，否则集合判空强制使用 `CollUtil.isEmpty(...)`、`CollUtil.isNotEmpty(...)`
 - 对 `Boolean` 装箱值、三态标记位、可空布尔开关，默认使用 `BooleanUtil.isTrue(...)`、`BooleanUtil.isFalse(...)`，不要散写 `Boolean.TRUE.equals(flag)`、`Boolean.FALSE.equals(flag)`
 - `Map`、数组、Bean、JSON、日期、ID、URL 等通用能力，默认优先使用 Hutool 对应工具，例如 `MapUtil`、`ArrayUtil`、`BeanUtil`、`JSONUtil`、`DateUtil`、`IdUtil`、`URLUtil`
-- 一次性、轻量 HTTP 请求或简单第三方调用，默认优先使用 Hutool 的 `HttpUtil` 或 `HttpRequest`
+- 一次性、轻量 HTTP 请求或简单第三方调用，默认优先使用 Hutool 的 `HttpUtil` 或 `HttpRequest`，但仍应放在 `infrastructure/client` 或 `integration/client` 等统一边界内，并显式满足超时、重试、域名白名单、协议校验与 SSRF 防护要求
 - 特殊情况仅限：现有框架 API 强约束、历史模块兼容成本过高、或项目基础设施已经统一封装成更高层能力
 - 同一模块内不要混用多套空值、字符串、集合工具，也不要自己手写重复 helper
 - 同一模块内不要混用 `ObjectUtil.equal(...)`、`Objects.equals(...)`、`Boolean.TRUE.equals(...)` 等多套判断风格

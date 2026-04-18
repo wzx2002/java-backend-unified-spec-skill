@@ -87,7 +87,7 @@
 - `OSS`、`TTS`、`AI`、短信、支付、推送等 SDK 默认放 `infrastructure/client`
 - 当三方接入特别多时，拆 `integration` 模块，目录统一放 `integration/client`
 - `infrastructure/client` 或 `integration/client` 只负责厂商配置、鉴权、签名、SDK 适配、超时、重试、异常映射
-- 对简单 HTTP 请求、轻量回调调用、基础下载上传工具、URL 编解码等通用能力，默认优先使用 Hutool 的 `HttpUtil`、`HttpRequest`、`URLUtil` 等现成能力，不要自己散写零散 HTTP 工具方法
+- 对简单 HTTP 请求、轻量回调调用、基础下载上传工具、URL 编解码等通用能力，默认优先使用 Hutool 的 `HttpUtil`、`HttpRequest`、`URLUtil` 等现成能力，不要自己散写零散 HTTP 工具方法；但这不等于可以绕过统一三方边界，相关调用仍应收口在 `infrastructure/client` 或 `integration/client`，并显式满足超时、重试、协议校验、域名白名单与 SSRF 防护要求
 - 第三方回调接口、Webhook、异步通知入口统一放 `web`，多入口项目统一放 `interfaces`
 - 是否调用三方、何时调用、调用结果如何回写业务数据，统一由 `business` 编排
 - `domain` 禁止直接依赖厂商 SDK
