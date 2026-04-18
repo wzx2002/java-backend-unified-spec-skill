@@ -633,7 +633,7 @@ public class OrderServiceImpl implements OrderService {
     @NoRepeatSubmit(keyPrefix = OrderNoRepeatKeys.ADMIN_ORDER_CONFIRM, expireSeconds = 5)
     @Transactional(rollbackFor = Exception.class)
     public void confirmOrder(ConfirmOrderCommand command) {
-        Validate.notNull(command, "确认订单命令不能为空");
+        Validate.isTrue(Objects.nonNull(command), "确认订单命令不能为空");
         Validate.notBlank(command.getOrderNo(), "订单号不能为空");
         distributedLockExecutor.executeWithLock(
             OrderLockKeys.confirmOrder(command.getOrderNo()),
@@ -865,17 +865,6 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public CommonResponse<Void> handleValidateException(IllegalArgumentException exception) {
-        return CommonResponse.fail("PARAM_ERROR", exception.getMessage());
-    }
-
-    /**
-     * 处理 `Validate.notNull(...)` 等简单守卫抛出的空指针异常。
-     *
-     * @param exception 空指针异常
-     * @return 失败响应
-     */
-    @ExceptionHandler(NullPointerException.class)
-    public CommonResponse<Void> handleValidateNullPointerException(NullPointerException exception) {
         return CommonResponse.fail("PARAM_ERROR", exception.getMessage());
     }
 

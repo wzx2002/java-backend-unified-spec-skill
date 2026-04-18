@@ -500,6 +500,8 @@ public enum OrderStatusEnum {
 - `Validate` 触发的参数校验异常要由统一异常处理器收口
 - 若项目使用 `Validate.notNull(...)` 作为业务层简单守卫，异常处理器需显式考虑其 `NullPointerException` 收口方式
 - 不要把所有 `NullPointerException` 一律映射为参数错误，避免把真实程序错误误判成前置校验失败
+- 示例和默认规范中，不建议通过 `@ExceptionHandler(NullPointerException.class)` 全局把 `NullPointerException` 直接映射为 `PARAM_ERROR`
+- 如果项目需要稳定返回参数错误或业务错误码，优先改用项目级断言 helper、`BizException`、或不会落入全局 `NullPointerException` 分支的统一异常写法
 
 #### 11.1 `Validate` 与 `BizException` 使用边界
 
@@ -512,7 +514,7 @@ public enum OrderStatusEnum {
 
 ```java
 // 简单守卫失败，直接使用 Validate。
-Validate.notNull(command, "确认订单命令不能为空");
+Validate.isTrue(Objects.nonNull(command), "确认订单命令不能为空");
 Validate.isTrue(StringUtils.isNotBlank(command.getOrderNo()), "订单号不能为空");
 
 // 需要明确错误码时，使用 BizException 或统一业务断言能力。
@@ -678,7 +680,7 @@ public boolean update(EmployeeDO employeeDO) {
 @Transactional(rollbackFor = Exception.class)
 public void updateEmployee(UpdateEmployeeCommand command) {
     // 校验
-    Validate.notNull(command, "更新员工命令不能为空");
+    Validate.isTrue(Objects.nonNull(command), "更新员工命令不能为空");
     EmployeeDO employeeDO = employeeRepo.findById(command.getEmployeeId());
     if (employeeDO == null) {
         throw new BizException(AccountErrorCodes.EMPLOYEE_NOT_FOUND, AccountErrorMessages.EMPLOYEE_NOT_FOUND);
