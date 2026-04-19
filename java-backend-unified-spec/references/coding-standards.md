@@ -555,6 +555,7 @@ BizAssert.notNull(orderDO, OrderErrorCodes.ORDER_NOT_FOUND, OrderErrorMessages.O
 
 - 只要某个低层模板已经明确会复用，或非常明显后续还会继续出现，就应尽早抽离到合适抽象中，不要等复制扩散后再统一收口
 - 常见需要自动抽离的模式包括：前置校验模板、业务断言模板、枚举状态判断、对象组装、锁 Key 拼装、查询条件启停、第三方请求模板、结果解析模板
+- 识别启发式：如果一行业务代码同时出现两层及以上底层 helper 组合，并且带有业务提示文案、错误码或异常语义，默认就应视为抽离候选，而不是继续内联
 - 抽离位置要贴近真实职责：参数守卫优先进项目级 `Validate`，业务错误码断言优先进 `BizAssert`，状态判断优先进枚举静态方法，对象转换优先进 `Convert`，三方调用模板优先进 `client`
 - 自动抽离不等于堆全局大杂烩；不要把跨层、跨语义的内容全部塞进 `CommonUtil`、`Helper`、`Utils`
 - 当模式只在一个小模块稳定复用时，优先抽到模块内最近的拥有者，不要过早升成全局基础设施
@@ -569,7 +570,7 @@ BizAssert.notNull(orderDO, OrderErrorCodes.ORDER_NOT_FOUND, OrderErrorMessages.O
 - 只有在转换逻辑一次性、局部、极短，且抽 `convert` 反而降低可读性时，才允许直接在当前方法里写一个很短的 `Builder`
 - 不要把几十行对象装配散写在 Controller、Assembler、ServiceImpl 里
 
-#### 12.1.2 ServiceImpl 编排格式
+#### 12.1.3 ServiceImpl 编排格式
 
 `ServiceImpl`、`ApplicationServiceImpl` 这类用例编排方法，默认遵循以下结构：
 
