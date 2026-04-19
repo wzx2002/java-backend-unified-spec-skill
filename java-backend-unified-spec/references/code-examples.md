@@ -863,6 +863,32 @@ public final class Validate {
     }
 
     /**
+     * 断言两个值相等。
+     *
+     * @param left    左值
+     * @param right   右值
+     * @param message 失败提示
+     */
+    public static void equal(Object left, Object right, String message) {
+        if (ObjectUtil.notEqual(left, right)) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    /**
+     * 断言两个值不相等。
+     *
+     * @param left    左值
+     * @param right   右值
+     * @param message 失败提示
+     */
+    public static void notEqual(Object left, Object right, String message) {
+        if (ObjectUtil.equal(left, right)) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    /**
      * 断言条件成立。
      *
      * @param expression 条件表达式

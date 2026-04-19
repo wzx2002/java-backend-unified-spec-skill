@@ -96,7 +96,7 @@
 1. 命名、目录、分层边界是否符合规范。
 2. 关键类、方法、字段中文注释是否补齐。
 3. 状态判断是否优先收口到枚举静态方法。
-4. 简单前置校验和简单守卫式失败分支是否统一使用项目级 `Validate.notNull(...)`、`Validate.notBlank(...)`、`Validate.isTrue(...)` 或等价统一能力，而不是散写 `if + throw`，也不是反复手写 `Validate.isTrue(ObjectUtil.isNotNull(...), "...不能为空")` 这类可封装模板。
+4. 简单前置校验和简单守卫式失败分支是否统一使用项目级 `Validate.notNull(...)`、`Validate.notBlank(...)`、`Validate.isTrue(...)`、`Validate.equal(...)`、`Validate.notEqual(...)` 或等价统一能力，而不是散写 `if + throw`，也不是反复手写 `Validate.isTrue(ObjectUtil.isNotNull(...), "...不能为空")`、`Validate.isTrue(ObjectUtil.equal(...), "...")`、`Validate.isTrue(ObjectUtil.notEqual(...), "...")` 这类可封装模板。
 5. 是否引入新的事务、幂等、锁、审计、权限风险。
 6. 是否产生魔法字符串、魔法数字、`Constants` 大杂烩，包括版本前缀、对象存储路径前缀等短业务字面量。
 7. 入口层装配是否放在 `Assembler`，业务层对象转换是否放在 `Convert` 中；只有特殊且很短的一次性装配才直接使用 `Builder`。
