@@ -1,5 +1,7 @@
 # java-backend-unified-spec-skill
 
+For the Chinese version, see [README.zh-CN.md](README.zh-CN.md).
+
 Unified Java backend standards and reusable skill for module-first architecture, strict naming conventions, detailed directory rules, default Chinese comments, explicit security baselines, maintainability governance, third-party integration boundaries, and full module API regression.
 
 ## Included Skill
@@ -12,7 +14,7 @@ Unified Java backend standards and reusable skill for module-first architecture,
 - Use `interfaces` for multi-entry projects
 - Optional `integration` module for large third-party adapters
 - Detailed directory, package, and class naming rules
-- Clear execution levels with `必须 / 推荐 / 可选`
+- Clear execution levels with `MUST / RECOMMENDED / OPTIONAL`
 - Strict category-based constant naming such as `XxxErrorCodes`, `XxxPermissionCodes`, `XxxRiskRuleCodes`, `XxxNoRepeatKeys`, `XxxLockKeys`
 - `XxxEnum` suffix for enums
 - Default Chinese comments for generated or modified Java backend code, including clear field-level comments for key business fields
@@ -28,6 +30,8 @@ Unified Java backend standards and reusable skill for module-first architecture,
 
 ```text
 java-backend-unified-spec-skill/
+|-- README.md
+|-- README.zh-CN.md
 `-- java-backend-unified-spec/
     |-- SKILL.md
     `-- references/
