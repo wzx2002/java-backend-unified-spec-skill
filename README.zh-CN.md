@@ -11,15 +11,19 @@
 ## 规范覆盖范围
 
 - 顶层模块默认使用 `infrastructure / persistence / business / web`
+- 即使代码最终只落在单一 `src/main/java` 下，也必须先按业务模块组织
 - 多入口项目使用 `interfaces`
 - 第三方接入规模较大时可拆分 `integration`
 - 细化目录、包名、类名命名规则
+- 无用目录、占位目录、废弃目录要求直接删除，不做“先留着”处理
 - 统一使用 `必须 / 推荐 / 可选` 规则等级
 - 常量按类别命名，例如 `XxxErrorCodes`、`XxxPermissionCodes`、`XxxRiskRuleCodes`、`XxxNoRepeatKeys`、`XxxLockKeys`
 - 枚举统一使用 `XxxEnum`
 - 默认要求生成或修改的 Java 后端代码补齐中文注释，并强调关键字段级注释
+- Controller 类和公开接口方法也属于强制中文注释范围
 - 提供密钥、敏感数据、上传下载、回调、发布前检查等安全基线
 - 提供兼容性、模块 README、ADR、质量门禁等可维护性治理规范
+- 提供仓库卫生与 `.gitignore` 规范，明确哪些本地文件不能提交
 - 提供模块 README / ADR / PR 自检 / 评审 / 交付上线模板
 - 示例代码定位为常见参考写法，而不是强绑定某个技术栈
 - 禁止魔法字符串与魔法数字

@@ -12,11 +12,14 @@
 - 多入口项目把 `web` 升级为 `interfaces`
 - 第三方接入规模不大时统一放 `infrastructure/client`；规模明显扩大后再拆 `integration/client`
 - 包路径优先按 `层 + 业务模块` 组织，不要只按技术类型全局平铺
+- 即使工程只有一个 `src/main/java`，也必须先按业务模块分包，再在模块内部做分层展开
 - `web` / `interfaces` 推荐按入口域拆目录，例如 `admin/order/controller`、`api/order/request`、`mq/order/consumer`
 - `business` 推荐按业务模块拆目录，例如 `order/command`、`order/query`、`order/service`、`order/domain`
 - `domain` 下优先使用 `manager`、`validator`、`policy` 表达业务规则角色，不要堆在一个 `service` 包里
 - `persistence` 推荐按业务模块拆目录，例如 `order/model`、`order/repo`、`order/mapper`、`order/query`
 - 包名、目录名统一使用小写英文语义词，避免 `common`、`util2`、`temp`、`misc` 这类无业务语义命名
+- 禁止在单一 `src` 下做全局 `controller / service / repo / mapper / dto / vo` 平铺
+- 无用目录、占位目录、废弃目录要直接删除，不要为了“以后可能会用”长期保留
 - 同一业务模块下，目录层级优先保持稳定，不要同一处同时出现 `dto`、`param`、`request` 三套近义目录
 - Web 入参统一使用 `request`，出参优先使用 `response` 或直接复用 `VO` 规则，内部编排输入统一使用 `command` / `query`
 - 能表达业务边界时，目录名优先用完整业务词，如 `settlement`、`reconciliation`、`withdraw`，不要只写模糊缩写
@@ -125,6 +128,7 @@
 - 注释必须服务于“可维护性”和“业务可读性”，不要写成噪音
 - 对关键业务字段，必须补齐字段级中文注释，且注释语义要清晰到足以支撑维护、联调和评审
 - 类、`public` / `protected` 方法、Repo 方法、关键业务字段、关键分支的中文注释都属于强制检查项
+- Controller 类和每个公开接口方法都属于强制注释对象，不能因为注解路径已经存在就省略方法注释
 
 ### 8.2 类级注释
 
@@ -153,6 +157,7 @@
 以下方法默认必须写中文方法注释：
 
 - `public` / `protected` 方法
+- Controller 对外接口方法、回调入口方法、消费入口方法
 - Repo 查询方法和状态更新方法
 - Assembler 的公开装配方法
 - Convert 的公开转换方法

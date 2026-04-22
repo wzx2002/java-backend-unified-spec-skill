@@ -11,15 +11,19 @@ Unified Java backend standards and reusable skill for module-first architecture,
 ## What It Enforces
 
 - Preferred top-level module naming: `infrastructure / persistence / business / web`
+- Keep business-module-first packaging even when the code finally lives under a single `src/main/java`
 - Use `interfaces` for multi-entry projects
 - Optional `integration` module for large third-party adapters
 - Detailed directory, package, and class naming rules
+- Delete useless or placeholder directories directly instead of keeping them for future use
 - Clear execution levels with `MUST / RECOMMENDED / OPTIONAL`
 - Strict category-based constant naming such as `XxxErrorCodes`, `XxxPermissionCodes`, `XxxRiskRuleCodes`, `XxxNoRepeatKeys`, `XxxLockKeys`
 - `XxxEnum` suffix for enums
 - Default Chinese comments for generated or modified Java backend code, including clear field-level comments for key business fields
+- Controller classes and public endpoint methods must also carry Chinese comments
 - Explicit secure baseline for secrets, sensitive data, uploads/downloads, callbacks, and release checks
 - Explicit maintainability governance for compatibility, module README, ADR, and automated quality gates
+- Repository hygiene and `.gitignore` guidance for files that must not be committed
 - Reusable module README / ADR / PR checklist / review checklist / release checklist templates
 - Example implementations positioned as common reference styles instead of mandatory technology choices
 - No magic strings
